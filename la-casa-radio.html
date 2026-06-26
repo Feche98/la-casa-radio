@@ -1123,7 +1123,7 @@ function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderN
   renderSubs();
 
   // Try to load logo from localStorage (user can set it)
-  const logoSrc = DB.get('logo_src') || '';
+  const logoSrc = DB.get('logo_src') || 'logo.png';
   ['nav-logo-img','hero-logo','login-logo'].forEach(id => {
     const el = document.getElementById(id);
     if (el && logoSrc) el.src = logoSrc;
