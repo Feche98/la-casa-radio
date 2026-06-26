@@ -272,9 +272,12 @@
     <div class="subscribe-box">
       <h3>Suscribite a las novedades</h3>
       <p>Te avisamos cuando haya algo nuevo en La Casa Radio</p>
-      <div class="subscribe-form">
-        <input type="email" id="sub-email" placeholder="tu@email.com">
-        <button class="btn btn-yellow btn-sm" onclick="subscribir()">Suscribirme</button>
+      <div style="max-width:400px;margin:0 auto;display:flex;flex-direction:column;gap:8px">
+        <input type="text" id="sub-nombre" placeholder="Tu nombre o apodo" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:white">
+        <div class="subscribe-form">
+          <input type="email" id="sub-email" placeholder="tu@email.com">
+          <button class="btn btn-yellow btn-sm" onclick="subscribir()">Suscribirme</button>
+        </div>
       </div>
     </div>
 
@@ -674,7 +677,7 @@ const _SB = supabase.createClient(
 );
 
 // ── ESTADO EN MEMORIA ─────────────────────────────────────────
-const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[] };
+const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[], comentarios:[] };
 
 async function dbLoad(table) {
   const { data, error } = await _SB.from(table).select('data').order('created_at', { ascending: true });
@@ -698,9 +701,9 @@ async function loadAll() {
   const ld = document.getElementById('loading');
   ld.style.display = 'flex';
   try {
-    const [news, tareas, stock, passwords, notas, subs, vots] = await Promise.all([
+    const [news, tareas, stock, passwords, notas, subs, vots, cmts] = await Promise.all([
       dbLoad('news'), dbLoad('tareas'), dbLoad('stock'),
-      dbLoad('passwords'), dbLoad('notas'), dbLoad('suscriptores'), dbLoad('votaciones')
+      dbLoad('passwords'), dbLoad('notas'), dbLoad('suscriptores'), dbLoad('votaciones'), dbLoad('comentarios')
     ]);
     S.news = news.reverse();
     S.tareas = tareas;
@@ -709,6 +712,7 @@ async function loadAll() {
     S.notas = notas.reverse();
     S.suscriptores = subs;
     S.votaciones = vots.reverse();
+    S.comentarios = cmts;
   } catch(e) {
     console.error('loadAll', e);
     toast('Error conectando a Supabase');
@@ -952,6 +956,7 @@ function renderNewsFeed() {
         <div class="news-title">${esc(n.titulo)}</div>
         ${n.cuerpo?`<div class="news-body">${esc(n.cuerpo)}</div>`:''}
         ${n.imagen?`<img src="${n.imagen}" style="margin-top:10px;max-width:100%;max-height:320px;border-radius:8px;object-fit:cover;display:block">`:''}
+        <div id="cmtsec-${n.id}" style="margin-top:10px;padding-top:10px;border-top:.5px solid var(--cr-border)">${comentariosHTML(n.id)}</div>
       </div>`;
   }).join('');
 }
@@ -959,16 +964,19 @@ function renderNewsFeed() {
 function tagLabel(t) { return {novedad:'Novedad',aviso:'Aviso',joda:'😂 Joda',info:'Info'}[t]||t; }
 
 async function subscribir() {
+  const nombre=document.getElementById('sub-nombre').value.trim();
   const email=document.getElementById('sub-email').value.trim().toLowerCase();
+  if (!nombre) { toast('Ingresá tu nombre'); return; }
   if (!email||!email.includes('@')) { toast('Ingresá un email válido'); return; }
   if (S.suscriptores.find(s=>s.email.toLowerCase()===email)) { toast('Ya estás suscripto/a'); return; }
-  const obj={id:uid(),email,fecha:new Date().toISOString()};
+  const obj={id:uid(),nombre,email,fecha:new Date().toISOString()};
   try {
     await dbInsert('suscriptores', obj);
     S.suscriptores.push(obj);
+    document.getElementById('sub-nombre').value='';
     document.getElementById('sub-email').value='';
-    toast('¡Te suscribiste a La Casa Radio!');
-    notificarFamilia('⭐ Nuevo suscriptor en La Casa Radio', `${email} se acaba de suscribir a La Casa Radio.`);
+    toast(`¡Bienvenido/a, ${nombre}! Ya estás suscripto/a.`);
+    notificarFamilia('⭐ Nuevo suscriptor en La Casa Radio', `${nombre} (${email}) se acaba de suscribir a La Casa Radio.`);
   } catch(e) { toast('Error al suscribirse'); }
 }
 
@@ -1412,7 +1420,7 @@ function verificarSub() {
   const found=S.suscriptores.find(s=>s.email.toLowerCase()===email);
   if (!found) { err.textContent='Este email no está suscripto. ¡Suscribite primero!'; err.style.display=''; return; }
   err.style.display='none';
-  subSession={email};
+  subSession={email, nombre: found.nombre || email.split('@')[0]};
   DB.set('sub_session',subSession);
   updateSubUI(); renderNewsFeed(); renderVipFeed(); renderVotacionesPub();
 }
@@ -1452,6 +1460,7 @@ function renderVipFeed() {
         <div class="news-title">${esc(n.titulo)}</div>
         ${n.cuerpo?`<div class="news-body">${esc(n.cuerpo)}</div>`:''}
         ${n.imagen?`<img src="${n.imagen}" style="margin-top:10px;max-width:100%;max-height:320px;border-radius:8px;object-fit:cover;display:block">`:''}
+        <div id="cmtsec-${n.id}" style="margin-top:10px;padding-top:10px;border-top:.5px solid var(--cr-border)">${comentariosHTML(n.id)}</div>
       </div>`;
   }).join('');
 }
@@ -1568,6 +1577,43 @@ function renderVotacionesPriv() {
         <button class="btn btn-sm btn-ghost" onclick="eliminarVotacion('${v.id}')">🗑 Eliminar</button>
       </div>
     </div>`).join('');
+}
+
+// ── COMENTARIOS ───────────────────────────────────────────────
+function comentariosHTML(newsId) {
+  const comments = S.comentarios.filter(c => c.newsId === newsId).sort((a,b)=>a.fecha>b.fecha?1:-1);
+  const lista = comments.map(c => `
+    <div style="display:flex;gap:8px;padding:6px 0;border-bottom:.5px solid var(--cr-border)">
+      <div style="width:26px;height:26px;border-radius:50%;background:var(--cr-blue);color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${esc((c.nombre||'?').slice(0,2).toUpperCase())}</div>
+      <div style="flex:1;min-width:0">
+        <span style="font-size:13px;font-weight:600">${esc(c.nombre||'?')}</span>
+        <span style="font-size:11px;color:var(--cr-muted);margin-left:6px">${fmtDate(c.fecha)}</span>
+        <div style="font-size:13px;margin-top:1px">${esc(c.texto)}</div>
+      </div>
+    </div>`).join('');
+  const input = subSession
+    ? `<div style="display:flex;gap:8px;margin-top:8px">
+        <input type="text" id="cmt-${newsId}" placeholder="Comentar como ${esc(subSession.nombre)}..." style="flex:1;font-size:13px;padding:7px 10px" onkeydown="if(event.key==='Enter')agregarComentario('${newsId}')">
+        <button class="btn btn-sm btn-ghost" onclick="agregarComentario('${newsId}')">Enviar</button>
+       </div>`
+    : `<div style="font-size:12px;color:var(--cr-muted);margin-top:6px">💬 Suscribite para comentar</div>`;
+  return `<div style="font-size:12px;font-weight:600;color:var(--cr-muted);margin-bottom:${comments.length?'4px':'0'}">
+    💬 ${comments.length} comentario${comments.length!==1?'s':''}
+  </div>${lista}${input}`;
+}
+
+async function agregarComentario(newsId) {
+  if (!subSession) return;
+  const inp = document.getElementById('cmt-'+newsId);
+  const texto = inp?.value.trim(); if (!texto) return;
+  const obj = { id:uid(), newsId, email:subSession.email, nombre:subSession.nombre||subSession.email, texto, fecha:new Date().toISOString() };
+  try {
+    await dbInsert('comentarios', obj);
+    S.comentarios.push(obj);
+    inp.value='';
+    const el = document.getElementById('cmtsec-'+newsId);
+    if (el) el.innerHTML = comentariosHTML(newsId);
+  } catch(e) { toast('Error al comentar'); }
 }
 
 // ── NOTIFICACIONES ────────────────────────────────────────────
