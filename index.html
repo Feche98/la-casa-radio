@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>La Casa Radio</title>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
   :root {
     --cr-black: #1a1a1a;
@@ -636,6 +637,27 @@
 <div id="toast"></div>
 
 <script>
+emailjs.init('bDaUYXgNCm6nR-eWd');
+const EMAILJS_SERVICE = 'service_amn4lq3';
+const EMAILJS_TEMPLATE = 'template_lb5pnig';
+
+async function notificarSuscriptores(titulo, cuerpo) {
+  const subs = getData('suscriptores');
+  if (!subs.length) return;
+  let enviados = 0;
+  for (const s of subs) {
+    try {
+      await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+        to_email: s.email,
+        titulo,
+        cuerpo: cuerpo || '',
+      });
+      enviados++;
+    } catch(e) { console.warn('Error enviando a', s.email, e); }
+  }
+  if (enviados > 0) toast(`📧 Notificación enviada a ${enviados} suscriptor${enviados>1?'es':''}`);
+}
+
 const USERS = {
   feche: { nombre:'Feche', initials:'FE', cls:'avatar-feche' },
   rodri: { nombre:'Rodri', initials:'RO', cls:'avatar-rodri' },
@@ -779,6 +801,7 @@ function publicarNovedad() {
   const news=getData('news');
   news.unshift({id:uid(),titulo,cuerpo:document.getElementById('news-cuerpo').value.trim(),tag:document.getElementById('news-tag').value,autor:currentUser,fecha:new Date().toISOString(),imagen,visibilidad,publicoDesde});
   setData('news',news); closeModal('news-modal'); toast('¡Novedad publicada!'); renderNewsFeed(); renderVipFeed();
+  if (visibilidad === 'publico') notificarSuscriptores(titulo, document.getElementById('news-cuerpo').value.trim());
 }
 
 function eliminarNews(id) {
