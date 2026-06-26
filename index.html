@@ -451,9 +451,18 @@
     <h3>🛒 Lista de compras</h3>
     <p class="text-muted" style="margin-bottom:1rem">Los ítems con stock bajo se agregan solos. Podés tildar/destildar y agregar extras.</p>
     <div id="lista-items"></div>
-    <div class="compra-add-row">
-      <input type="text" id="lista-nuevo" placeholder="Agregar ítem extra..." onkeydown="if(event.key==='Enter')agregarItemLista()">
-      <button class="btn btn-ghost btn-sm" onclick="agregarItemLista()" style="white-space:nowrap">+ Agregar</button>
+    <div style="margin-top:1rem;border-top:0.5px solid var(--cr-border);padding-top:1rem">
+      <p style="font-size:12px;font-weight:600;color:var(--cr-muted);margin-bottom:8px">AGREGAR ÍTEMS</p>
+      <div class="compra-add-row" style="margin-bottom:8px">
+        <select id="lista-stock-select" style="flex:1">
+          <option value="">— Elegir del stock —</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="agregarDesdeStock()" style="white-space:nowrap">+ Agregar</button>
+      </div>
+      <div class="compra-add-row">
+        <input type="text" id="lista-nuevo" placeholder="O escribir cualquier cosa..." onkeydown="if(event.key==='Enter')agregarItemLista()">
+        <button class="btn btn-ghost btn-sm" onclick="agregarItemLista()" style="white-space:nowrap">+ Agregar</button>
+      </div>
     </div>
     <div class="modal-footer" style="flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('lista-modal')">Cerrar</button>
@@ -867,13 +876,35 @@ function openListaCompras() {
   listaItems=stock.filter(s=>s.qty<s.min).map(s=>({
     id:uid(),
     texto:s.nombre+(s.unidad?' ('+s.unidad+')':''),
+    stockId:s.id,
     checked:true,
     nivel:(s.qty/Math.max(s.min,1))<0.3?'critico':'bajo',
     auto:true,
   }));
   renderListaItems();
   document.getElementById('lista-nuevo').value='';
+  // Poblar selector con ítems del stock que no están ya en la lista
+  const yaEnLista=new Set(listaItems.map(i=>i.stockId).filter(Boolean));
+  const sel=document.getElementById('lista-stock-select');
+  sel.innerHTML='<option value="">— Elegir del stock —</option>';
+  stock.filter(s=>!yaEnLista.has(s.id)).forEach(s=>{
+    const opt=document.createElement('option');
+    opt.value=s.id;
+    opt.textContent=s.nombre+(s.unidad?' ('+s.unidad+')':'');
+    sel.appendChild(opt);
+  });
   document.getElementById('lista-modal').classList.add('open');
+}
+
+function agregarDesdeStock() {
+  const sel=document.getElementById('lista-stock-select');
+  const stockId=sel.value; if(!stockId) return;
+  const s=getData('stock').find(s=>s.id===stockId); if(!s) return;
+  listaItems.push({id:uid(),texto:s.nombre+(s.unidad?' ('+s.unidad+')':''),stockId:s.id,checked:true,auto:false});
+  // Sacar del selector
+  sel.querySelector(`option[value="${stockId}"]`)?.remove();
+  sel.value='';
+  renderListaItems();
 }
 
 function renderListaItems() {
