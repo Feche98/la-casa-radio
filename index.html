@@ -185,6 +185,25 @@
   .empty-state .ei { font-size: 2.5rem; margin-bottom: .75rem; }
   .empty-state p { font-size: 14px; }
 
+  /* VIP & SUBS */
+  .badge-vip { background: #f5d400; color: #1a1a1a; }
+  .badge-adelanto { background: #e8eaf6; color: #3949ab; }
+  .sub-access-card { background: #1a1a1a; border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.5rem; color: white; border: 1px solid #333; }
+  .sub-access-card p { font-size: 13px; color: rgba(255,255,255,.65); margin-bottom: .6rem; }
+  .sub-verified-bar { background: #0d3d1e; border: 1px solid #27ae60; border-radius: var(--radius); padding: .75rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; color: white; gap: 8px; }
+  .locked-post { background: #f8f8f4; border: 1px dashed var(--cr-border); border-radius: 8px; padding: .9rem 1rem; display: flex; align-items: center; gap: 10px; color: var(--cr-muted); font-size: 14px; }
+
+  /* POLLS */
+  .poll-card { background: white; border: 0.5px solid var(--cr-border); border-radius: var(--radius); padding: 1.1rem 1.25rem; margin-bottom: .75rem; }
+  .poll-question { font-weight: 600; font-size: 15px; margin-bottom: .75rem; }
+  .poll-opt { margin-bottom: 8px; }
+  .poll-bar-wrap { background: var(--cr-bg); border-radius: 6px; height: 36px; position: relative; overflow: hidden; cursor: pointer; border: 0.5px solid var(--cr-border); transition: border-color .15s; }
+  .poll-bar-wrap:hover { border-color: var(--cr-blue); }
+  .poll-bar-fill { height: 100%; border-radius: 6px; background: var(--cr-blue); transition: width .5s; }
+  .poll-bar-fill.my-vote { background: var(--cr-success); }
+  .poll-bar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-size: 13px; font-weight: 500; pointer-events: none; }
+  .poll-meta { font-size: 12px; color: var(--cr-muted); margin-top: 8px; display: flex; gap: 12px; flex-wrap: wrap; }
+
   #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--cr-black); color: white; padding: 10px 18px; border-radius: 8px; font-size: 14px; z-index: 999; transform: translateY(80px); opacity: 0; transition: all .25s; pointer-events: none; }
   #toast.show { transform: translateY(0); opacity: 1; }
 
@@ -242,6 +261,42 @@
         <button class="btn btn-yellow btn-sm" onclick="subscribir()">Suscribirme</button>
       </div>
     </div>
+
+    <div id="sub-access-card" class="sub-access-card">
+      <p>⭐ ¿Ya estás suscripto/a? Accedé a la Sala VIP</p>
+      <div style="display:flex;gap:8px">
+        <input type="email" id="sub-verify-email" placeholder="tu@email.com" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:white;flex:1">
+        <button class="btn btn-yellow btn-sm" onclick="verificarSub()" style="white-space:nowrap">Entrar al VIP</button>
+      </div>
+      <div id="sub-verify-err" style="font-size:12px;color:#ff9999;margin-top:.5rem;display:none"></div>
+    </div>
+    <div id="sub-verified-bar" class="sub-verified-bar" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:1.3rem">⭐</span>
+        <div>
+          <div style="font-weight:600;font-size:14px">Acceso VIP activo</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.65)" id="sub-vip-label"></div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="cerrarSesionSub()">Salir</button>
+    </div>
+
+    <div id="vip-section" style="display:none">
+      <div class="card">
+        <div class="section-header" style="margin-bottom:1rem">
+          <h2>🔒 Sala VIP</h2>
+          <span class="badge badge-vip">Solo suscriptores</span>
+        </div>
+        <div id="vip-feed"></div>
+      </div>
+      <div class="card">
+        <div class="section-header" style="margin-bottom:1rem">
+          <h2>🗳️ Votaciones</h2>
+          <span class="text-muted" id="vot-count-pub"></span>
+        </div>
+        <div id="votaciones-pub"></div>
+      </div>
+    </div>
     <div class="card">
       <div class="section-header">
         <h2>Novedades</h2>
@@ -271,6 +326,7 @@
     <button class="tab" onclick="switchTab('stock',this)">📦 Stock</button>
     <button class="tab" onclick="switchTab('passwords',this)">🔑 Contraseñas</button>
     <button class="tab" onclick="switchTab('notas',this)">📝 Notas</button>
+    <button class="tab" onclick="switchTab('votaciones',this)">🗳️ Votaciones</button>
   </div>
 
   <div id="tab-tareas" class="tab-content active">
@@ -309,6 +365,32 @@
     </div>
     <div id="notas-list"></div>
   </div>
+
+  <div id="tab-votaciones" class="tab-content">
+    <div class="section-header">
+      <h2>Votaciones</h2>
+      <button class="btn btn-primary btn-sm" onclick="openVotacionModal()">+ Nueva votación</button>
+    </div>
+    <p class="text-muted" style="margin-bottom:1rem">Los suscriptores votan desde la Sala VIP. Todos pueden ver los resultados.</p>
+    <div id="votaciones-priv"></div>
+  </div>
+</div>
+
+<!-- VOTACION MODAL -->
+<div class="modal-overlay" id="votacion-modal">
+  <div class="modal">
+    <h3 id="votacion-modal-title">Nueva votación</h3>
+    <div class="form-group"><label>Pregunta</label><input type="text" id="vot-pregunta" placeholder="Ej: ¿Qué pedimos el viernes?"></div>
+    <div class="form-group"><label>Opción 1</label><input type="text" id="vot-op1" placeholder="Ej: Pizza"></div>
+    <div class="form-group"><label>Opción 2</label><input type="text" id="vot-op2" placeholder="Ej: Sushi"></div>
+    <div class="form-group"><label>Opción 3 (opcional)</label><input type="text" id="vot-op3" placeholder="Ej: Empanadas"></div>
+    <div class="form-group"><label>Opción 4 (opcional)</label><input type="text" id="vot-op4" placeholder="Ej: Lo que haya"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('votacion-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarVotacion()">Crear votación</button>
+    </div>
+    <input type="hidden" id="vot-edit-id">
+  </div>
 </div>
 
 <!-- LOGIN MODAL -->
@@ -337,6 +419,18 @@
     <h3>Publicar novedad</h3>
     <div class="form-group"><label>Título</label><input type="text" id="news-titulo" placeholder="Resumen en una línea"></div>
     <div class="form-group"><label>Contenido</label><textarea id="news-cuerpo" rows="4" placeholder="Contá la novedad..."></textarea></div>
+    <div class="form-group">
+      <label>Visibilidad</label>
+      <select id="news-visibilidad" onchange="toggleAdelantoOpts(this.value)">
+        <option value="publico">🌐 Público — visible para todos</option>
+        <option value="vip">🔒 Solo suscriptores (Sala VIP)</option>
+        <option value="adelanto">⏰ Adelanto — suscriptores lo ven antes</option>
+      </select>
+    </div>
+    <div id="news-adelanto-opts" style="display:none" class="form-group">
+      <label>¿Cuántos días antes lo ven los suscriptores?</label>
+      <input type="number" id="news-dias-adelanto" value="1" min="1" max="30">
+    </div>
     <div class="form-row">
       <div class="form-group">
         <label>Categoría</label>
@@ -650,6 +744,9 @@ function openPublicarModal() {
   document.getElementById('news-autor').value=USERS[currentUser]?.nombre||'';
   document.getElementById('news-imagen').value='';
   document.getElementById('news-img-preview').style.display='none';
+  document.getElementById('news-visibilidad').value='publico';
+  document.getElementById('news-adelanto-opts').style.display='none';
+  document.getElementById('news-dias-adelanto').value='1';
   document.getElementById('news-modal').classList.add('open');
 }
 
@@ -675,9 +772,13 @@ function publicarNovedad() {
   if (!titulo) { toast('Ingresá un título'); return; }
   const imgSrc=document.getElementById('news-img-thumb').src;
   const imagen=imgSrc&&imgSrc.startsWith('data:')?imgSrc:null;
+  const visibilidad=document.getElementById('news-visibilidad').value;
+  const diasAdelanto=visibilidad==='adelanto'?parseInt(document.getElementById('news-dias-adelanto').value)||1:0;
+  // publicoDesde = fecha de publicación + diasAdelanto días
+  const publicoDesde = diasAdelanto>0 ? addDays(new Date().toISOString().slice(0,10), diasAdelanto) : null;
   const news=getData('news');
-  news.unshift({id:uid(),titulo,cuerpo:document.getElementById('news-cuerpo').value.trim(),tag:document.getElementById('news-tag').value,autor:currentUser,fecha:new Date().toISOString(),imagen});
-  setData('news',news); closeModal('news-modal'); toast('¡Novedad publicada!'); renderNewsFeed();
+  news.unshift({id:uid(),titulo,cuerpo:document.getElementById('news-cuerpo').value.trim(),tag:document.getElementById('news-tag').value,autor:currentUser,fecha:new Date().toISOString(),imagen,visibilidad,publicoDesde});
+  setData('news',news); closeModal('news-modal'); toast('¡Novedad publicada!'); renderNewsFeed(); renderVipFeed();
 }
 
 function eliminarNews(id) {
@@ -685,19 +786,30 @@ function eliminarNews(id) {
 }
 
 function renderNewsFeed() {
-  const news=getData('news');
-  document.getElementById('news-count').textContent=news.length?news.length+' publicación'+(news.length>1?'es':''):'';
-  const feed=document.getElementById('news-feed');
-  if (!news.length) { feed.innerHTML='<div class="empty-state"><div class="ei">📻</div><p>Todavía no hay novedades.</p></div>'; return; }
-  feed.innerHTML=news.map(n=>{
-    const u=USERS[n.autor];
-    const authorEl=u
+  const allNews = getData('news');
+  const today = new Date().toISOString().slice(0,10);
+  const publicNews = allNews.filter(n => n.visibilidad !== 'vip');
+  const feed = document.getElementById('news-feed');
+  document.getElementById('news-count').textContent = publicNews.length ? publicNews.length+' publicación'+(publicNews.length>1?'es':'') : '';
+  if (!publicNews.length) { feed.innerHTML='<div class="empty-state"><div class="ei">📻</div><p>Todavía no hay novedades.</p></div>'; return; }
+  feed.innerHTML = publicNews.map(n => {
+    const u = USERS[n.autor];
+    const authorEl = u
       ? `<div style="display:inline-flex;align-items:center;gap:5px;background:none">${avatar(n.autor,22)}<span style="font-size:13px;font-weight:600">${u.nombre}</span></div>`
       : `<span style="font-size:13px;font-weight:600;color:var(--cr-muted)">${esc(n.autor||'?')}</span>`;
+    const isLocked = n.visibilidad==='adelanto' && n.publicoDesde && n.publicoDesde > today;
+    if (isLocked) {
+      return `
+        <div class="news-item">
+          <div class="news-meta">${authorEl}<span class="badge badge-adelanto">⏰ Disponible el ${fmtDateShort(n.publicoDesde)}</span>${currentUser?`<button class="btn-icon" onclick="eliminarNews('${n.id}')" style="margin-left:auto">🗑</button>`:''}</div>
+          <div class="locked-post">🔒 <strong>${esc(n.titulo)}</strong> — los suscriptores ya pueden verlo</div>
+        </div>`;
+    }
     return `
       <div class="news-item">
         <div class="news-meta">
           ${authorEl}
+          ${n.visibilidad==='adelanto'?'<span class="badge badge-adelanto">⏰ Adelanto</span>':''}
           <span class="news-tag tag-${n.tag}">${tagLabel(n.tag)}</span>
           <span class="news-date">${fmtDate(n.fecha)}</span>
           ${currentUser?`<button class="btn-icon" onclick="eliminarNews('${n.id}')" style="margin-left:auto">🗑</button>`:''}
@@ -1099,15 +1211,196 @@ function renderNotas() {
     </div>`).join('');
 }
 
+// ── SUSCRIPTOR VIP ───────────────────────────────────────────
+let subSession = null;
+
+function verificarSub() {
+  const email = document.getElementById('sub-verify-email').value.trim().toLowerCase();
+  const err = document.getElementById('sub-verify-err');
+  if (!email) { err.textContent='Ingresá tu email'; err.style.display=''; return; }
+  const subs = getData('suscriptores');
+  const found = subs.find(s => s.email.toLowerCase() === email);
+  if (!found) { err.textContent='Este email no está suscripto. ¡Suscribite primero!'; err.style.display=''; return; }
+  err.style.display='none';
+  subSession = { email };
+  DB.set('sub_session', subSession);
+  updateSubUI();
+  renderNewsFeed();
+  renderVipFeed();
+  renderVotacionesPub();
+}
+
+function cerrarSesionSub() {
+  subSession = null;
+  DB.set('sub_session', null);
+  updateSubUI();
+  renderNewsFeed();
+}
+
+function updateSubUI() {
+  const card = document.getElementById('sub-access-card');
+  const bar = document.getElementById('sub-verified-bar');
+  const vipSection = document.getElementById('vip-section');
+  if (subSession) {
+    card.style.display = 'none';
+    bar.style.display = '';
+    document.getElementById('sub-vip-label').textContent = subSession.email;
+    vipSection.style.display = '';
+  } else {
+    card.style.display = '';
+    bar.style.display = 'none';
+    vipSection.style.display = 'none';
+  }
+}
+
+function renderVipFeed() {
+  const news = getData('news').filter(n => n.visibilidad === 'vip' || n.visibilidad === 'adelanto');
+  const el = document.getElementById('vip-feed');
+  if (!el) return;
+  if (!news.length) { el.innerHTML='<div class="empty-state"><div class="ei">🔒</div><p>No hay contenido VIP todavía.</p></div>'; return; }
+  el.innerHTML = news.map(n => {
+    const u = USERS[n.autor];
+    const authorEl = u
+      ? `<div style="display:inline-flex;align-items:center;gap:5px">${avatar(n.autor,22)}<span style="font-size:13px;font-weight:600">${u.nombre}</span></div>`
+      : `<span style="font-size:13px;font-weight:600;color:var(--cr-muted)">${esc(n.autor||'?')}</span>`;
+    const badge = n.visibilidad==='vip'
+      ? `<span class="badge badge-vip">🔒 VIP</span>`
+      : `<span class="badge badge-adelanto">⏰ Adelanto</span>`;
+    return `
+      <div class="news-item">
+        <div class="news-meta">${authorEl}${badge}<span class="news-tag tag-${n.tag}">${tagLabel(n.tag)}</span><span class="news-date">${fmtDate(n.fecha)}</span></div>
+        <div class="news-title">${esc(n.titulo)}</div>
+        ${n.cuerpo?`<div class="news-body">${esc(n.cuerpo)}</div>`:''}
+        ${n.imagen?`<img src="${n.imagen}" style="margin-top:10px;max-width:100%;max-height:320px;border-radius:8px;object-fit:cover;display:block">`:''}
+      </div>`;
+  }).join('');
+}
+
+// ── VOTACIONES ────────────────────────────────────────────────
+function openVotacionModal(id=null) {
+  document.getElementById('vot-edit-id').value = id||'';
+  document.getElementById('votacion-modal-title').textContent = id ? 'Editar votación' : 'Nueva votación';
+  ['vot-pregunta','vot-op1','vot-op2','vot-op3','vot-op4'].forEach(i=>document.getElementById(i).value='');
+  if (id) {
+    const v = getData('votaciones').find(v=>v.id===id); if(!v) return;
+    document.getElementById('vot-pregunta').value = v.pregunta;
+    v.opciones.forEach((op,i)=>{ const el=document.getElementById('vot-op'+(i+1)); if(el) el.value=op; });
+  }
+  document.getElementById('votacion-modal').classList.add('open');
+}
+
+function guardarVotacion() {
+  const pregunta = document.getElementById('vot-pregunta').value.trim();
+  const op1 = document.getElementById('vot-op1').value.trim();
+  const op2 = document.getElementById('vot-op2').value.trim();
+  if (!pregunta||!op1||!op2) { toast('Ingresá la pregunta y al menos 2 opciones'); return; }
+  const opciones = [op1,op2,document.getElementById('vot-op3').value.trim(),document.getElementById('vot-op4').value.trim()].filter(Boolean);
+  const vots = getData('votaciones');
+  const editId = document.getElementById('vot-edit-id').value;
+  const existing = editId ? vots.find(v=>v.id===editId) : null;
+  const obj = { id:editId||uid(), pregunta, opciones, votos: existing?.votos||{}, activa:true, fecha:existing?.fecha||new Date().toISOString(), autor:currentUser };
+  if (editId) { const i=vots.findIndex(v=>v.id===editId); if(i!==-1) vots[i]=obj; }
+  else vots.unshift(obj);
+  setData('votaciones',vots);
+  closeModal('votacion-modal');
+  toast(editId?'Votación actualizada':'¡Votación creada!');
+  renderVotacionesPriv();
+}
+
+function votar(id, opIdx) {
+  if (!subSession) return;
+  const vots = getData('votaciones');
+  const v = vots.find(v=>v.id===id); if(!v||!v.activa) return;
+  const email = subSession.email;
+  if (v.votos[email] === opIdx) { delete v.votos[email]; } // toggle off
+  else { v.votos[email] = opIdx; }
+  setData('votaciones',vots);
+  renderVotacionesPub();
+}
+
+function cerrarVotacion(id) {
+  const vots = getData('votaciones');
+  const v = vots.find(v=>v.id===id); if(!v) return;
+  v.activa = !v.activa;
+  setData('votaciones',vots);
+  renderVotacionesPriv();
+  toast(v.activa ? 'Votación reabierta' : 'Votación cerrada');
+}
+
+function eliminarVotacion(id) {
+  confirmDlg('¿Eliminar esta votación?', ()=>{ setData('votaciones',getData('votaciones').filter(v=>v.id!==id)); renderVotacionesPriv(); toast('Votación eliminada'); });
+}
+
+function votacionHTML(v, canVote) {
+  const totalVotos = Object.keys(v.votos).length;
+  const myVote = subSession ? v.votos[subSession.email] : undefined;
+  const conteos = v.opciones.map((_,i)=>Object.values(v.votos).filter(x=>x===i).length);
+  return `
+    <div class="poll-card">
+      <div class="poll-question">${esc(v.pregunta)}</div>
+      ${!v.activa?`<div style="font-size:12px;color:var(--cr-danger);margin-bottom:.5rem;font-weight:600">🔒 Votación cerrada</div>`:''}
+      ${v.opciones.map((op,i)=>{
+        const pct = totalVotos ? Math.round(conteos[i]/totalVotos*100) : 0;
+        const isMyVote = myVote===i;
+        return `
+          <div class="poll-opt">
+            <div class="poll-bar-wrap" onclick="${canVote&&v.activa?`votar('${v.id}',${i})`:''}">
+              <div class="poll-bar-fill ${isMyVote?'my-vote':''}" style="width:${pct}%"></div>
+              <div class="poll-bar-text">
+                <span>${esc(op)}${isMyVote?' ✓':''}</span>
+                <span>${pct}%</span>
+              </div>
+            </div>
+          </div>`;
+      }).join('')}
+      <div class="poll-meta">
+        <span>👥 ${totalVotos} voto${totalVotos!==1?'s':''}</span>
+        <span>${fmtDate(v.fecha)}</span>
+        ${canVote&&v.activa?`<span style="color:var(--cr-blue)">Hacé click para votar</span>`:''}
+      </div>
+    </div>`;
+}
+
+function renderVotacionesPub() {
+  const el = document.getElementById('votaciones-pub'); if(!el) return;
+  const vots = getData('votaciones');
+  document.getElementById('vot-count-pub').textContent = vots.length ? vots.length+' votación'+(vots.length>1?'es':'') : '';
+  if (!vots.length) { el.innerHTML='<div class="empty-state"><div class="ei">🗳️</div><p>No hay votaciones activas.</p></div>'; return; }
+  el.innerHTML = vots.map(v=>votacionHTML(v, !!subSession)).join('');
+}
+
+function renderVotacionesPriv() {
+  const el = document.getElementById('votaciones-priv'); if(!el) return;
+  const vots = getData('votaciones');
+  if (!vots.length) { el.innerHTML='<div class="empty-state"><div class="ei">🗳️</div><p>No hay votaciones creadas.</p></div>'; return; }
+  el.innerHTML = vots.map(v=>`
+    <div style="margin-bottom:.75rem">
+      ${votacionHTML(v, false)}
+      <div style="display:flex;gap:6px;margin-top:-4px;padding:0 4px 8px">
+        <button class="btn btn-sm btn-ghost" onclick="cerrarVotacion('${v.id}')">${v.activa?'🔒 Cerrar':'🔓 Reabrir'}</button>
+        <button class="btn btn-sm btn-ghost" onclick="openVotacionModal('${v.id}')">✏️ Editar</button>
+        <button class="btn btn-sm btn-ghost" onclick="eliminarVotacion('${v.id}')">🗑 Eliminar</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── VISIBILIDAD EN NOVEDADES ──────────────────────────────────
+function toggleAdelantoOpts(val) {
+  document.getElementById('news-adelanto-opts').style.display = val==='adelanto' ? '' : 'none';
+}
+
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtDate(iso) { if(!iso) return ''; return new Date(iso).toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'}); }
 function fmtDateShort(d) { if(!d) return ''; return new Date(d+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'}); }
-function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); }
+function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); renderVotacionesPriv(); }
 
 (function init() {
   currentUser=DB.get('current_user')||null;
+  subSession=DB.get('sub_session')||null;
   updateAuthUI();
+  updateSubUI();
   renderNewsFeed();
+  if (subSession) { renderVipFeed(); renderVotacionesPub(); }
   if (!DB.get('initialized')) {
     DB.set('initialized',true);
     setData('tareas',[
