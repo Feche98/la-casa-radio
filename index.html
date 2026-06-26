@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>La Casa Radio</title>
 <script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --cr-black: #1a1a1a;
@@ -209,6 +210,8 @@
   #toast.show { transform: translateY(0); opacity: 1; }
 
   .text-muted { color: var(--cr-muted); font-size: 13px; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   @media (max-width: 600px) {
     .form-row { grid-template-columns: 1fr; }
@@ -635,29 +638,79 @@
 </div>
 
 <div id="toast"></div>
+<div id="loading" style="display:none;position:fixed;inset:0;background:rgba(26,26,26,.88);z-index:9999;align-items:center;justify-content:center;color:white;font-size:1rem;gap:14px;flex-direction:column">
+  <div style="width:38px;height:38px;border:3px solid rgba(255,255,255,.25);border-top-color:#f5d400;border-radius:50%;animation:spin .8s linear infinite"></div>
+  <span>Cargando datos...</span>
+</div>
 
 <script>
+// ── SUPABASE ──────────────────────────────────────────────────
+const _SB = supabase.createClient(
+  'https://kmzcikymguhxrmpyatnj.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttemNpa3ltZ3VoeHJtcHlhdG5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NjUzMTgsImV4cCI6MjA5ODA0MTMxOH0.L8bZI2x3fGgHreI0I5NHvueGdfxhaR9Nv_Xx7N2LQ7Y'
+);
+
+// ── ESTADO EN MEMORIA ─────────────────────────────────────────
+const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[] };
+
+async function dbLoad(table) {
+  const { data, error } = await _SB.from(table).select('data').order('created_at', { ascending: true });
+  if (error) { console.error('load', table, error); return []; }
+  return (data||[]).map(r => r.data);
+}
+async function dbInsert(table, obj) {
+  const { error } = await _SB.from(table).insert({ id: obj.id, data: obj });
+  if (error) { console.error('insert', table, error); throw error; }
+}
+async function dbUpdate(table, obj) {
+  const { error } = await _SB.from(table).update({ data: obj }).eq('id', obj.id);
+  if (error) { console.error('update', table, error); throw error; }
+}
+async function dbDelete(table, id) {
+  const { error } = await _SB.from(table).delete().eq('id', id);
+  if (error) { console.error('delete', table, error); throw error; }
+}
+
+async function loadAll() {
+  const ld = document.getElementById('loading');
+  ld.style.display = 'flex';
+  try {
+    const [news, tareas, stock, passwords, notas, subs, vots] = await Promise.all([
+      dbLoad('news'), dbLoad('tareas'), dbLoad('stock'),
+      dbLoad('passwords'), dbLoad('notas'), dbLoad('suscriptores'), dbLoad('votaciones')
+    ]);
+    S.news = news.reverse();
+    S.tareas = tareas;
+    S.stock = stock;
+    S.passwords = passwords;
+    S.notas = notas.reverse();
+    S.suscriptores = subs;
+    S.votaciones = vots.reverse();
+  } catch(e) {
+    console.error('loadAll', e);
+    toast('Error conectando a Supabase');
+  }
+  ld.style.display = 'none';
+}
+
+// ── EMAILJS ───────────────────────────────────────────────────
 emailjs.init({ publicKey: 'bDaUYXgNCm6nR-eWd' });
 const EMAILJS_SERVICE = 'service_43v4j16';
 const EMAILJS_TEMPLATE = 'template_lb5pnig';
 
 async function notificarSuscriptores(titulo, cuerpo) {
-  const subs = getData('suscriptores');
-  if (!subs.length) return;
+  if (!S.suscriptores.length) return;
   let enviados = 0;
-  for (const s of subs) {
+  for (const s of S.suscriptores) {
     try {
-      await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
-        to_email: s.email,
-        titulo,
-        cuerpo: cuerpo || '',
-      });
+      await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, { to_email: s.email, titulo, cuerpo: cuerpo||'' });
       enviados++;
     } catch(e) { console.warn('Error enviando a', s.email, e); }
   }
   if (enviados > 0) toast(`📧 Notificación enviada a ${enviados} suscriptor${enviados>1?'es':''}`);
 }
 
+// ── USUARIOS ──────────────────────────────────────────────────
 const USERS = {
   feche: { nombre:'Feche', initials:'FE', cls:'avatar-feche' },
   rodri: { nombre:'Rodri', initials:'RO', cls:'avatar-rodri' },
@@ -724,8 +777,6 @@ const DB = {
   get(k) { try { return JSON.parse(localStorage.getItem('cr_'+k)); } catch { return null; } },
   set(k,v) { localStorage.setItem('cr_'+k, JSON.stringify(v)); },
 };
-function getData(k, def=[]) { return DB.get(k) ?? def; }
-function setData(k,v) { DB.set(k,v); }
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 
 function showPage(name) {
@@ -759,7 +810,7 @@ function confirmDlg(msg,cb) {
   document.getElementById('confirm-modal').classList.add('open');
 }
 
-// NEWS
+// ── NEWS ──────────────────────────────────────────────────────
 function openPublicarModal() {
   document.getElementById('news-titulo').value='';
   document.getElementById('news-cuerpo').value='';
@@ -789,27 +840,39 @@ function clearNewsImg() {
   document.getElementById('news-img-thumb').src='';
 }
 
-function publicarNovedad() {
+function toggleAdelantoOpts(val) {
+  document.getElementById('news-adelanto-opts').style.display = val==='adelanto' ? '' : 'none';
+}
+
+async function publicarNovedad() {
   const titulo=document.getElementById('news-titulo').value.trim();
   if (!titulo) { toast('Ingresá un título'); return; }
   const imgSrc=document.getElementById('news-img-thumb').src;
   const imagen=imgSrc&&imgSrc.startsWith('data:')?imgSrc:null;
   const visibilidad=document.getElementById('news-visibilidad').value;
   const diasAdelanto=visibilidad==='adelanto'?parseInt(document.getElementById('news-dias-adelanto').value)||1:0;
-  // publicoDesde = fecha de publicación + diasAdelanto días
-  const publicoDesde = diasAdelanto>0 ? addDays(new Date().toISOString().slice(0,10), diasAdelanto) : null;
-  const news=getData('news');
-  news.unshift({id:uid(),titulo,cuerpo:document.getElementById('news-cuerpo').value.trim(),tag:document.getElementById('news-tag').value,autor:currentUser,fecha:new Date().toISOString(),imagen,visibilidad,publicoDesde});
-  setData('news',news); closeModal('news-modal'); toast('¡Novedad publicada!'); renderNewsFeed(); renderVipFeed();
-  if (visibilidad === 'publico') notificarSuscriptores(titulo, document.getElementById('news-cuerpo').value.trim());
+  const publicoDesde=diasAdelanto>0?addDays(new Date().toISOString().slice(0,10),diasAdelanto):null;
+  const obj={id:uid(),titulo,cuerpo:document.getElementById('news-cuerpo').value.trim(),tag:document.getElementById('news-tag').value,autor:currentUser,fecha:new Date().toISOString(),imagen,visibilidad,publicoDesde};
+  try {
+    await dbInsert('news', obj);
+    S.news.unshift(obj);
+    closeModal('news-modal'); toast('¡Novedad publicada!'); renderNewsFeed(); renderVipFeed();
+    if (visibilidad==='publico') notificarSuscriptores(titulo, obj.cuerpo);
+  } catch(e) { toast('Error al publicar'); }
 }
 
 function eliminarNews(id) {
-  confirmDlg('¿Eliminar esta novedad?',()=>{ setData('news',getData('news').filter(n=>n.id!==id)); renderNewsFeed(); toast('Novedad eliminada'); });
+  confirmDlg('¿Eliminar esta novedad?', async ()=>{
+    try {
+      await dbDelete('news', id);
+      S.news=S.news.filter(n=>n.id!==id);
+      renderNewsFeed(); renderVipFeed(); toast('Novedad eliminada');
+    } catch(e) { toast('Error al eliminar'); }
+  });
 }
 
 function renderNewsFeed() {
-  const allNews = getData('news');
+  const allNews = S.news;
   const today = new Date().toISOString().slice(0,10);
   const publicNews = allNews.filter(n => n.visibilidad !== 'vip');
   const feed = document.getElementById('news-feed');
@@ -846,23 +909,25 @@ function renderNewsFeed() {
 
 function tagLabel(t) { return {novedad:'Novedad',aviso:'Aviso',joda:'😂 Joda',info:'Info'}[t]||t; }
 
-function subscribir() {
-  const email=document.getElementById('sub-email').value.trim();
+async function subscribir() {
+  const email=document.getElementById('sub-email').value.trim().toLowerCase();
   if (!email||!email.includes('@')) { toast('Ingresá un email válido'); return; }
-  const subs=getData('suscriptores');
-  if (subs.find(s=>s.email===email)) { toast('Ya estás suscripto/a'); return; }
-  subs.push({email,fecha:new Date().toISOString()});
-  setData('suscriptores',subs);
-  document.getElementById('sub-email').value='';
-  toast('¡Te suscribiste a La Casa Radio!');
+  if (S.suscriptores.find(s=>s.email.toLowerCase()===email)) { toast('Ya estás suscripto/a'); return; }
+  const obj={id:uid(),email,fecha:new Date().toISOString()};
+  try {
+    await dbInsert('suscriptores', obj);
+    S.suscriptores.push(obj);
+    document.getElementById('sub-email').value='';
+    toast('¡Te suscribiste a La Casa Radio!');
+  } catch(e) { toast('Error al suscribirse'); }
 }
 
-// TAREAS
+// ── TAREAS ────────────────────────────────────────────────────
 function openTareaModal(id=null) {
   document.getElementById('tarea-edit-id').value=id||'';
   document.getElementById('tarea-modal-title').textContent=id?'Editar tarea':'Nueva tarea';
   if (id) {
-    const t=getData('tareas').find(t=>t.id===id); if(!t) return;
+    const t=S.tareas.find(t=>t.id===id); if(!t) return;
     document.getElementById('tarea-nombre').value=t.nombre;
     document.getElementById('tarea-cat').value=t.cat;
     document.getElementById('tarea-freq').value=t.freq;
@@ -883,43 +948,54 @@ function openTareaModal(id=null) {
   document.getElementById('tarea-modal').classList.add('open');
 }
 
-function guardarTarea() {
+async function guardarTarea() {
   const nombre=document.getElementById('tarea-nombre').value.trim();
   if (!nombre) { toast('Ingresá el nombre'); return; }
-  const tareas=getData('tareas');
   const editId=document.getElementById('tarea-edit-id').value;
   const quien=document.getElementById('tarea-quien').value;
   const fecha=document.getElementById('tarea-fecha').value;
-  const existing=editId?tareas.find(t=>t.id===editId):null;
+  const existing=editId?S.tareas.find(t=>t.id===editId):null;
   let historial=existing?.historial||[];
   if (fecha&&quien&&(!historial.length||historial[0].fecha!==fecha||historial[0].quien!==quien)) {
     historial=[{quien,fecha},...historial].slice(0,10);
   }
   const obj={id:editId||uid(),nombre,cat:document.getElementById('tarea-cat').value,freq:parseInt(document.getElementById('tarea-freq').value),asignadoA:document.getElementById('tarea-asignada').value,notas:document.getElementById('tarea-notas').value.trim(),historial};
-  if (editId) { const i=tareas.findIndex(t=>t.id===editId); if(i!==-1) tareas[i]=obj; }
-  else tareas.push(obj);
-  setData('tareas',tareas); closeModal('tarea-modal'); toast(editId?'Tarea actualizada':'¡Tarea agregada!'); renderTareas();
+  try {
+    if (editId) {
+      await dbUpdate('tareas', obj);
+      const i=S.tareas.findIndex(t=>t.id===editId); if(i!==-1) S.tareas[i]=obj;
+    } else {
+      await dbInsert('tareas', obj);
+      S.tareas.push(obj);
+    }
+    closeModal('tarea-modal'); toast(editId?'Tarea actualizada':'¡Tarea agregada!'); renderTareas();
+  } catch(e) { toast('Error al guardar'); }
 }
 
-function marcarHecha(id) {
-  const tareas=getData('tareas');
-  const t=tareas.find(t=>t.id===id); if(!t) return;
+async function marcarHecha(id) {
+  const t=S.tareas.find(t=>t.id===id); if(!t) return;
   t.historial=[{quien:currentUser,fecha:new Date().toISOString().slice(0,10)},...(t.historial||[])].slice(0,10);
-  setData('tareas',tareas);
-  toast(`✅ Marcada por ${userName(currentUser)}`);
-  renderTareas();
+  try {
+    await dbUpdate('tareas', t);
+    toast(`✅ Marcada por ${userName(currentUser)}`); renderTareas();
+  } catch(e) { toast('Error al guardar'); }
 }
 
 function eliminarTarea(id) {
-  confirmDlg('¿Eliminar esta tarea?',()=>{ setData('tareas',getData('tareas').filter(t=>t.id!==id)); renderTareas(); toast('Tarea eliminada'); });
+  confirmDlg('¿Eliminar esta tarea?', async ()=>{
+    try {
+      await dbDelete('tareas', id);
+      S.tareas=S.tareas.filter(t=>t.id!==id); renderTareas(); toast('Tarea eliminada');
+    } catch(e) { toast('Error al eliminar'); }
+  });
 }
 
 function renderTareas() {
-  const tareas=getData('tareas');
+  const tareas=S.tareas;
   const el=document.getElementById('tareas-list');
   if (!tareas.length) { el.innerHTML='<div class="empty-state"><div class="ei">✅</div><p>No hay tareas cargadas.</p></div>'; return; }
-  tareas.sort((a,b)=>diasHastaVence(a)-diasHastaVence(b));
-  el.innerHTML=tareas.map(t=>{
+  const sorted=[...tareas].sort((a,b)=>diasHastaVence(a)-diasHastaVence(b));
+  el.innerHTML=sorted.map(t=>{
     const last=t.historial?.[0];
     const dias=diasHastaVence(t);
     const {badge,label}=estadoTarea(dias);
@@ -968,14 +1044,14 @@ function estadoTarea(dias) {
 function freqLabel(d) { return {1:'día',2:'2 días',3:'3 días',7:'semana',14:'2 semanas',30:'mes',60:'2 meses',90:'trimestre',180:'6 meses',365:'año'}[d]||d+' días'; }
 function addDays(s,days) { const d=new Date(s+'T12:00:00'); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
 
-// STOCK
+// ── STOCK ─────────────────────────────────────────────────────
 let stockCatFiltro='Todos';
 
 function openStockModal(id=null) {
   document.getElementById('stock-edit-id').value=id||'';
   document.getElementById('stock-modal-title').textContent=id?'Editar ítem':'Nuevo ítem';
   if (id) {
-    const s=getData('stock').find(s=>s.id===id); if(!s) return;
+    const s=S.stock.find(s=>s.id===id); if(!s) return;
     document.getElementById('stock-nombre').value=s.nombre;
     document.getElementById('stock-cat').value=s.cat;
     document.getElementById('stock-unidad').value=s.unidad||'';
@@ -990,36 +1066,49 @@ function openStockModal(id=null) {
   document.getElementById('stock-modal').classList.add('open');
 }
 
-function guardarStock() {
+async function guardarStock() {
   const nombre=document.getElementById('stock-nombre').value.trim();
   if (!nombre) { toast('Ingresá el nombre'); return; }
-  const stock=getData('stock');
   const editId=document.getElementById('stock-edit-id').value;
   const obj={id:editId||uid(),nombre,cat:document.getElementById('stock-cat').value,unidad:document.getElementById('stock-unidad').value.trim(),qty:parseFloat(document.getElementById('stock-qty').value)||0,min:parseFloat(document.getElementById('stock-min').value)||1};
-  if (editId) { const i=stock.findIndex(s=>s.id===editId); if(i!==-1) stock[i]=obj; }
-  else stock.push(obj);
-  setData('stock',stock); closeModal('stock-modal'); toast(editId?'Actualizado':'¡Ítem agregado!'); renderStock();
+  try {
+    if (editId) {
+      await dbUpdate('stock', obj);
+      const i=S.stock.findIndex(s=>s.id===editId); if(i!==-1) S.stock[i]=obj;
+    } else {
+      await dbInsert('stock', obj);
+      S.stock.push(obj);
+    }
+    closeModal('stock-modal'); toast(editId?'Actualizado':'¡Ítem agregado!'); renderStock();
+  } catch(e) { toast('Error al guardar'); }
 }
 
-function cambiarQty(id,delta) {
-  const stock=getData('stock'); const s=stock.find(s=>s.id===id); if(!s) return;
-  s.qty=Math.max(0,s.qty+delta); setData('stock',stock); renderStock();
+async function cambiarQty(id, delta) {
+  const s=S.stock.find(s=>s.id===id); if(!s) return;
+  s.qty=Math.max(0, s.qty+delta);
+  try { await dbUpdate('stock', s); renderStock(); }
+  catch(e) { toast('Error al actualizar'); }
 }
 
 function eliminarStock(id) {
-  confirmDlg('¿Eliminar este ítem?',()=>{ setData('stock',getData('stock').filter(s=>s.id!==id)); renderStock(); toast('Ítem eliminado'); });
+  confirmDlg('¿Eliminar este ítem?', async ()=>{
+    try {
+      await dbDelete('stock', id);
+      S.stock=S.stock.filter(s=>s.id!==id); renderStock(); toast('Ítem eliminado');
+    } catch(e) { toast('Error al eliminar'); }
+  });
 }
 
 function renderStock() {
-  const stock=getData('stock');
+  const stock=S.stock;
   const grid=document.getElementById('stock-grid');
   const filterEl=document.getElementById('stock-filter');
   const cats=['Todos',...new Set(stock.map(s=>s.cat))];
   filterEl.innerHTML=cats.map(c=>`<button class="filter-btn ${c===stockCatFiltro?'active':''}" onclick="setStockFiltro('${c}')">${c}</button>`).join('');
   const filtered=stockCatFiltro==='Todos'?stock:stock.filter(s=>s.cat===stockCatFiltro);
-  filtered.sort((a,b)=>(a.qty/a.min)-(b.qty/b.min));
-  if (!filtered.length) { grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="ei">📦</div><p>No hay ítems.</p></div>'; return; }
-  grid.innerHTML=filtered.map(s=>{
+  const sorted=[...filtered].sort((a,b)=>(a.qty/a.min)-(b.qty/b.min));
+  if (!sorted.length) { grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="ei">📦</div><p>No hay ítems.</p></div>'; return; }
+  grid.innerHTML=sorted.map(s=>{
     const pct=Math.min(100,Math.round(s.qty/Math.max(s.min,1)*100));
     const cls=pct<30?'critico':pct<70?'bajo':'ok';
     const emoji=pct<30?'🔴':pct<70?'🟡':'🟢';
@@ -1043,29 +1132,24 @@ function renderStock() {
 
 function setStockFiltro(cat) { stockCatFiltro=cat; renderStock(); }
 
-// LISTA DE COMPRAS
+// ── LISTA DE COMPRAS ──────────────────────────────────────────
 let listaItems=[];
 
 function openListaCompras() {
-  const stock=getData('stock');
+  const stock=S.stock;
   listaItems=stock.filter(s=>s.qty<s.min).map(s=>({
-    id:uid(),
-    texto:s.nombre+(s.unidad?' ('+s.unidad+')':''),
-    stockId:s.id,
-    checked:true,
-    nivel:(s.qty/Math.max(s.min,1))<0.3?'critico':'bajo',
-    auto:true,
+    id:uid(), texto:s.nombre+(s.unidad?' ('+s.unidad+')':''),
+    stockId:s.id, checked:true,
+    nivel:(s.qty/Math.max(s.min,1))<0.3?'critico':'bajo', auto:true,
   }));
   renderListaItems();
   document.getElementById('lista-nuevo').value='';
-  // Poblar selector con ítems del stock que no están ya en la lista
   const yaEnLista=new Set(listaItems.map(i=>i.stockId).filter(Boolean));
   const sel=document.getElementById('lista-stock-select');
   sel.innerHTML='<option value="">— Elegir del stock —</option>';
   stock.filter(s=>!yaEnLista.has(s.id)).forEach(s=>{
     const opt=document.createElement('option');
-    opt.value=s.id;
-    opt.textContent=s.nombre+(s.unidad?' ('+s.unidad+')':'');
+    opt.value=s.id; opt.textContent=s.nombre+(s.unidad?' ('+s.unidad+')':'');
     sel.appendChild(opt);
   });
   document.getElementById('lista-modal').classList.add('open');
@@ -1074,12 +1158,10 @@ function openListaCompras() {
 function agregarDesdeStock() {
   const sel=document.getElementById('lista-stock-select');
   const stockId=sel.value; if(!stockId) return;
-  const s=getData('stock').find(s=>s.id===stockId); if(!s) return;
+  const s=S.stock.find(s=>s.id===stockId); if(!s) return;
   listaItems.push({id:uid(),texto:s.nombre+(s.unidad?' ('+s.unidad+')':''),stockId:s.id,checked:true,auto:false});
-  // Sacar del selector
   sel.querySelector(`option[value="${stockId}"]`)?.remove();
-  sel.value='';
-  renderListaItems();
+  sel.value=''; renderListaItems();
 }
 
 function renderListaItems() {
@@ -1104,8 +1186,7 @@ function agregarItemLista() {
 function copiarLista() {
   const items=listaItems.filter(i=>i.checked);
   if (!items.length) { toast('No hay ítems seleccionados'); return; }
-  const txt='🛒 Lista de compras - La Casa Radio\n\n'+items.map(i=>'• '+i.texto).join('\n');
-  navigator.clipboard.writeText(txt).then(()=>toast('¡Lista copiada!'));
+  navigator.clipboard.writeText('🛒 Lista de compras - La Casa Radio\n\n'+items.map(i=>'• '+i.texto).join('\n')).then(()=>toast('¡Lista copiada!'));
 }
 
 function imprimirLista() {
@@ -1116,12 +1197,12 @@ function imprimirLista() {
   win.document.close(); win.print();
 }
 
-// CONTRASEÑAS
+// ── CONTRASEÑAS ───────────────────────────────────────────────
 function openPwdModal(id=null) {
   document.getElementById('pwd-edit-id').value=id||'';
   document.getElementById('pwd-modal-title').textContent=id?'Editar contraseña':'Nueva contraseña';
   if (id) {
-    const p=getData('passwords').find(p=>p.id===id); if(!p) return;
+    const p=S.passwords.find(p=>p.id===id); if(!p) return;
     document.getElementById('pwd-servicio').value=p.servicio;
     document.getElementById('pwd-usuario').value=p.usuario||'';
     document.getElementById('pwd-password').value=p.password;
@@ -1135,36 +1216,47 @@ function openPwdModal(id=null) {
 
 function togglePwdInput() { const i=document.getElementById('pwd-password'); i.type=i.type==='password'?'text':'password'; }
 
-function guardarPwd() {
+async function guardarPwd() {
   const servicio=document.getElementById('pwd-servicio').value.trim();
   const password=document.getElementById('pwd-password').value;
   if (!servicio||!password) { toast('Ingresá el servicio y la contraseña'); return; }
-  const passwords=getData('passwords');
   const editId=document.getElementById('pwd-edit-id').value;
   const obj={id:editId||uid(),servicio,usuario:document.getElementById('pwd-usuario').value.trim(),password,nota:document.getElementById('pwd-nota').value.trim()};
-  if (editId) { const i=passwords.findIndex(p=>p.id===editId); if(i!==-1) passwords[i]=obj; }
-  else passwords.push(obj);
-  setData('passwords',passwords); closeModal('pwd-modal'); toast(editId?'Actualizada':'¡Contraseña guardada!'); renderPasswords();
+  try {
+    if (editId) {
+      await dbUpdate('passwords', obj);
+      const i=S.passwords.findIndex(p=>p.id===editId); if(i!==-1) S.passwords[i]=obj;
+    } else {
+      await dbInsert('passwords', obj);
+      S.passwords.push(obj);
+    }
+    closeModal('pwd-modal'); toast(editId?'Actualizada':'¡Contraseña guardada!'); renderPasswords();
+  } catch(e) { toast('Error al guardar'); }
 }
 
 function eliminarPwd(id) {
-  confirmDlg('¿Eliminar esta contraseña?',()=>{ setData('passwords',getData('passwords').filter(p=>p.id!==id)); renderPasswords(); toast('Eliminada'); });
+  confirmDlg('¿Eliminar esta contraseña?', async ()=>{
+    try {
+      await dbDelete('passwords', id);
+      S.passwords=S.passwords.filter(p=>p.id!==id); renderPasswords(); toast('Eliminada');
+    } catch(e) { toast('Error al eliminar'); }
+  });
 }
 
 function togglePwdVis(id) {
   const el=document.getElementById('pv'+id);
-  const p=getData('passwords').find(p=>p.id===id); if(!p) return;
+  const p=S.passwords.find(p=>p.id===id); if(!p) return;
   el.textContent=el.dataset.v==='1'?'••••••••':p.password;
   el.dataset.v=el.dataset.v==='1'?'0':'1';
 }
 
 function copiarPwd(id) {
-  const p=getData('passwords').find(p=>p.id===id); if(!p) return;
+  const p=S.passwords.find(p=>p.id===id); if(!p) return;
   navigator.clipboard.writeText(p.password).then(()=>toast('Contraseña copiada'));
 }
 
 function renderPasswords() {
-  const passwords=getData('passwords');
+  const passwords=S.passwords;
   const el=document.getElementById('pwd-list');
   if (!passwords.length) { el.innerHTML='<div class="empty-state"><div class="ei">🔑</div><p>No hay contraseñas guardadas.</p></div>'; return; }
   el.innerHTML=passwords.map(p=>`
@@ -1185,12 +1277,12 @@ function renderPasswords() {
     </div>`).join('');
 }
 
-// NOTAS
+// ── NOTAS ─────────────────────────────────────────────────────
 function openNotaModal(id=null) {
   document.getElementById('nota-edit-id').value=id||'';
   document.getElementById('nota-modal-title').textContent=id?'Editar nota':'Nueva nota';
   if (id) {
-    const n=getData('notas').find(n=>n.id===id); if(!n) return;
+    const n=S.notas.find(n=>n.id===id); if(!n) return;
     document.getElementById('nota-titulo').value=n.titulo;
     document.getElementById('nota-cuerpo').value=n.cuerpo;
   } else {
@@ -1200,23 +1292,34 @@ function openNotaModal(id=null) {
   document.getElementById('nota-modal').classList.add('open');
 }
 
-function guardarNota() {
+async function guardarNota() {
   const titulo=document.getElementById('nota-titulo').value.trim();
   if (!titulo) { toast('Ingresá un título'); return; }
-  const notas=getData('notas');
   const editId=document.getElementById('nota-edit-id').value;
   const obj={id:editId||uid(),titulo,cuerpo:document.getElementById('nota-cuerpo').value.trim(),fecha:new Date().toISOString(),autor:currentUser};
-  if (editId) { const i=notas.findIndex(n=>n.id===editId); if(i!==-1) notas[i]=obj; }
-  else notas.unshift(obj);
-  setData('notas',notas); closeModal('nota-modal'); toast(editId?'Nota actualizada':'¡Nota guardada!'); renderNotas();
+  try {
+    if (editId) {
+      await dbUpdate('notas', obj);
+      const i=S.notas.findIndex(n=>n.id===editId); if(i!==-1) S.notas[i]=obj;
+    } else {
+      await dbInsert('notas', obj);
+      S.notas.unshift(obj);
+    }
+    closeModal('nota-modal'); toast(editId?'Nota actualizada':'¡Nota guardada!'); renderNotas();
+  } catch(e) { toast('Error al guardar'); }
 }
 
 function eliminarNota(id) {
-  confirmDlg('¿Eliminar esta nota?',()=>{ setData('notas',getData('notas').filter(n=>n.id!==id)); renderNotas(); toast('Nota eliminada'); });
+  confirmDlg('¿Eliminar esta nota?', async ()=>{
+    try {
+      await dbDelete('notas', id);
+      S.notas=S.notas.filter(n=>n.id!==id); renderNotas(); toast('Nota eliminada');
+    } catch(e) { toast('Error al eliminar'); }
+  });
 }
 
 function renderNotas() {
-  const notas=getData('notas');
+  const notas=S.notas;
   const el=document.getElementById('notas-list');
   if (!notas.length) { el.innerHTML='<div class="empty-state"><div class="ei">📝</div><p>No hay notas todavía.</p></div>'; return; }
   el.innerHTML=notas.map(n=>`
@@ -1234,61 +1337,50 @@ function renderNotas() {
     </div>`).join('');
 }
 
-// ── SUSCRIPTOR VIP ───────────────────────────────────────────
+// ── SUSCRIPTOR VIP ────────────────────────────────────────────
 let subSession = null;
 
 function verificarSub() {
-  const email = document.getElementById('sub-verify-email').value.trim().toLowerCase();
-  const err = document.getElementById('sub-verify-err');
+  const email=document.getElementById('sub-verify-email').value.trim().toLowerCase();
+  const err=document.getElementById('sub-verify-err');
   if (!email) { err.textContent='Ingresá tu email'; err.style.display=''; return; }
-  const subs = getData('suscriptores');
-  const found = subs.find(s => s.email.toLowerCase() === email);
+  const found=S.suscriptores.find(s=>s.email.toLowerCase()===email);
   if (!found) { err.textContent='Este email no está suscripto. ¡Suscribite primero!'; err.style.display=''; return; }
   err.style.display='none';
-  subSession = { email };
-  DB.set('sub_session', subSession);
-  updateSubUI();
-  renderNewsFeed();
-  renderVipFeed();
-  renderVotacionesPub();
+  subSession={email};
+  DB.set('sub_session',subSession);
+  updateSubUI(); renderNewsFeed(); renderVipFeed(); renderVotacionesPub();
 }
 
 function cerrarSesionSub() {
-  subSession = null;
-  DB.set('sub_session', null);
-  updateSubUI();
-  renderNewsFeed();
+  subSession=null; DB.set('sub_session',null);
+  updateSubUI(); renderNewsFeed();
 }
 
 function updateSubUI() {
-  const card = document.getElementById('sub-access-card');
-  const bar = document.getElementById('sub-verified-bar');
-  const vipSection = document.getElementById('vip-section');
+  const card=document.getElementById('sub-access-card');
+  const bar=document.getElementById('sub-verified-bar');
+  const vipSection=document.getElementById('vip-section');
   if (subSession) {
-    card.style.display = 'none';
-    bar.style.display = '';
-    document.getElementById('sub-vip-label').textContent = subSession.email;
-    vipSection.style.display = '';
+    card.style.display='none'; bar.style.display='';
+    document.getElementById('sub-vip-label').textContent=subSession.email;
+    vipSection.style.display='';
   } else {
-    card.style.display = '';
-    bar.style.display = 'none';
-    vipSection.style.display = 'none';
+    card.style.display=''; bar.style.display='none';
+    vipSection.style.display='none';
   }
 }
 
 function renderVipFeed() {
-  const news = getData('news').filter(n => n.visibilidad === 'vip' || n.visibilidad === 'adelanto');
-  const el = document.getElementById('vip-feed');
-  if (!el) return;
+  const news=S.news.filter(n=>n.visibilidad==='vip'||n.visibilidad==='adelanto');
+  const el=document.getElementById('vip-feed'); if(!el) return;
   if (!news.length) { el.innerHTML='<div class="empty-state"><div class="ei">🔒</div><p>No hay contenido VIP todavía.</p></div>'; return; }
-  el.innerHTML = news.map(n => {
-    const u = USERS[n.autor];
-    const authorEl = u
-      ? `<div style="display:inline-flex;align-items:center;gap:5px">${avatar(n.autor,22)}<span style="font-size:13px;font-weight:600">${u.nombre}</span></div>`
-      : `<span style="font-size:13px;font-weight:600;color:var(--cr-muted)">${esc(n.autor||'?')}</span>`;
-    const badge = n.visibilidad==='vip'
-      ? `<span class="badge badge-vip">🔒 VIP</span>`
-      : `<span class="badge badge-adelanto">⏰ Adelanto</span>`;
+  el.innerHTML=news.map(n=>{
+    const u=USERS[n.autor];
+    const authorEl=u
+      ?`<div style="display:inline-flex;align-items:center;gap:5px">${avatar(n.autor,22)}<span style="font-size:13px;font-weight:600">${u.nombre}</span></div>`
+      :`<span style="font-size:13px;font-weight:600;color:var(--cr-muted)">${esc(n.autor||'?')}</span>`;
+    const badge=n.visibilidad==='vip'?`<span class="badge badge-vip">🔒 VIP</span>`:`<span class="badge badge-adelanto">⏰ Adelanto</span>`;
     return `
       <div class="news-item">
         <div class="news-meta">${authorEl}${badge}<span class="news-tag tag-${n.tag}">${tagLabel(n.tag)}</span><span class="news-date">${fmtDate(n.fecha)}</span></div>
@@ -1301,70 +1393,76 @@ function renderVipFeed() {
 
 // ── VOTACIONES ────────────────────────────────────────────────
 function openVotacionModal(id=null) {
-  document.getElementById('vot-edit-id').value = id||'';
-  document.getElementById('votacion-modal-title').textContent = id ? 'Editar votación' : 'Nueva votación';
+  document.getElementById('vot-edit-id').value=id||'';
+  document.getElementById('votacion-modal-title').textContent=id?'Editar votación':'Nueva votación';
   ['vot-pregunta','vot-op1','vot-op2','vot-op3','vot-op4'].forEach(i=>document.getElementById(i).value='');
   if (id) {
-    const v = getData('votaciones').find(v=>v.id===id); if(!v) return;
-    document.getElementById('vot-pregunta').value = v.pregunta;
+    const v=S.votaciones.find(v=>v.id===id); if(!v) return;
+    document.getElementById('vot-pregunta').value=v.pregunta;
     v.opciones.forEach((op,i)=>{ const el=document.getElementById('vot-op'+(i+1)); if(el) el.value=op; });
   }
   document.getElementById('votacion-modal').classList.add('open');
 }
 
-function guardarVotacion() {
-  const pregunta = document.getElementById('vot-pregunta').value.trim();
-  const op1 = document.getElementById('vot-op1').value.trim();
-  const op2 = document.getElementById('vot-op2').value.trim();
+async function guardarVotacion() {
+  const pregunta=document.getElementById('vot-pregunta').value.trim();
+  const op1=document.getElementById('vot-op1').value.trim();
+  const op2=document.getElementById('vot-op2').value.trim();
   if (!pregunta||!op1||!op2) { toast('Ingresá la pregunta y al menos 2 opciones'); return; }
-  const opciones = [op1,op2,document.getElementById('vot-op3').value.trim(),document.getElementById('vot-op4').value.trim()].filter(Boolean);
-  const vots = getData('votaciones');
-  const editId = document.getElementById('vot-edit-id').value;
-  const existing = editId ? vots.find(v=>v.id===editId) : null;
-  const obj = { id:editId||uid(), pregunta, opciones, votos: existing?.votos||{}, activa:true, fecha:existing?.fecha||new Date().toISOString(), autor:currentUser };
-  if (editId) { const i=vots.findIndex(v=>v.id===editId); if(i!==-1) vots[i]=obj; }
-  else vots.unshift(obj);
-  setData('votaciones',vots);
-  closeModal('votacion-modal');
-  toast(editId?'Votación actualizada':'¡Votación creada!');
-  renderVotacionesPriv();
+  const opciones=[op1,op2,document.getElementById('vot-op3').value.trim(),document.getElementById('vot-op4').value.trim()].filter(Boolean);
+  const editId=document.getElementById('vot-edit-id').value;
+  const existing=editId?S.votaciones.find(v=>v.id===editId):null;
+  const obj={id:editId||uid(),pregunta,opciones,votos:existing?.votos||{},activa:true,fecha:existing?.fecha||new Date().toISOString(),autor:currentUser};
+  try {
+    if (editId) {
+      await dbUpdate('votaciones', obj);
+      const i=S.votaciones.findIndex(v=>v.id===editId); if(i!==-1) S.votaciones[i]=obj;
+    } else {
+      await dbInsert('votaciones', obj);
+      S.votaciones.unshift(obj);
+    }
+    closeModal('votacion-modal'); toast(editId?'Votación actualizada':'¡Votación creada!'); renderVotacionesPriv();
+  } catch(e) { toast('Error al guardar'); }
 }
 
-function votar(id, opIdx) {
+async function votar(id, opIdx) {
   if (!subSession) return;
-  const vots = getData('votaciones');
-  const v = vots.find(v=>v.id===id); if(!v||!v.activa) return;
-  const email = subSession.email;
-  if (v.votos[email] === opIdx) { delete v.votos[email]; } // toggle off
-  else { v.votos[email] = opIdx; }
-  setData('votaciones',vots);
-  renderVotacionesPub();
+  const v=S.votaciones.find(v=>v.id===id); if(!v||!v.activa) return;
+  const email=subSession.email;
+  if (v.votos[email]===opIdx) { delete v.votos[email]; } else { v.votos[email]=opIdx; }
+  try { await dbUpdate('votaciones', v); renderVotacionesPub(); }
+  catch(e) { toast('Error al votar'); }
 }
 
-function cerrarVotacion(id) {
-  const vots = getData('votaciones');
-  const v = vots.find(v=>v.id===id); if(!v) return;
-  v.activa = !v.activa;
-  setData('votaciones',vots);
-  renderVotacionesPriv();
-  toast(v.activa ? 'Votación reabierta' : 'Votación cerrada');
+async function cerrarVotacion(id) {
+  const v=S.votaciones.find(v=>v.id===id); if(!v) return;
+  v.activa=!v.activa;
+  try {
+    await dbUpdate('votaciones', v);
+    renderVotacionesPriv(); toast(v.activa?'Votación reabierta':'Votación cerrada');
+  } catch(e) { toast('Error al actualizar'); }
 }
 
 function eliminarVotacion(id) {
-  confirmDlg('¿Eliminar esta votación?', ()=>{ setData('votaciones',getData('votaciones').filter(v=>v.id!==id)); renderVotacionesPriv(); toast('Votación eliminada'); });
+  confirmDlg('¿Eliminar esta votación?', async ()=>{
+    try {
+      await dbDelete('votaciones', id);
+      S.votaciones=S.votaciones.filter(v=>v.id!==id); renderVotacionesPriv(); toast('Votación eliminada');
+    } catch(e) { toast('Error al eliminar'); }
+  });
 }
 
 function votacionHTML(v, canVote) {
-  const totalVotos = Object.keys(v.votos).length;
-  const myVote = subSession ? v.votos[subSession.email] : undefined;
-  const conteos = v.opciones.map((_,i)=>Object.values(v.votos).filter(x=>x===i).length);
+  const totalVotos=Object.keys(v.votos).length;
+  const myVote=subSession?v.votos[subSession.email]:undefined;
+  const conteos=v.opciones.map((_,i)=>Object.values(v.votos).filter(x=>x===i).length);
   return `
     <div class="poll-card">
       <div class="poll-question">${esc(v.pregunta)}</div>
       ${!v.activa?`<div style="font-size:12px;color:var(--cr-danger);margin-bottom:.5rem;font-weight:600">🔒 Votación cerrada</div>`:''}
       ${v.opciones.map((op,i)=>{
-        const pct = totalVotos ? Math.round(conteos[i]/totalVotos*100) : 0;
-        const isMyVote = myVote===i;
+        const pct=totalVotos?Math.round(conteos[i]/totalVotos*100):0;
+        const isMyVote=myVote===i;
         return `
           <div class="poll-opt">
             <div class="poll-bar-wrap" onclick="${canVote&&v.activa?`votar('${v.id}',${i})`:''}">
@@ -1385,20 +1483,20 @@ function votacionHTML(v, canVote) {
 }
 
 function renderVotacionesPub() {
-  const el = document.getElementById('votaciones-pub'); if(!el) return;
-  const vots = getData('votaciones');
-  document.getElementById('vot-count-pub').textContent = vots.length ? vots.length+' votación'+(vots.length>1?'es':'') : '';
+  const el=document.getElementById('votaciones-pub'); if(!el) return;
+  const vots=S.votaciones;
+  document.getElementById('vot-count-pub').textContent=vots.length?vots.length+' votación'+(vots.length>1?'es':''):'';
   if (!vots.length) { el.innerHTML='<div class="empty-state"><div class="ei">🗳️</div><p>No hay votaciones activas.</p></div>'; return; }
-  el.innerHTML = vots.map(v=>votacionHTML(v, !!subSession)).join('');
+  el.innerHTML=vots.map(v=>votacionHTML(v,!!subSession)).join('');
 }
 
 function renderVotacionesPriv() {
-  const el = document.getElementById('votaciones-priv'); if(!el) return;
-  const vots = getData('votaciones');
+  const el=document.getElementById('votaciones-priv'); if(!el) return;
+  const vots=S.votaciones;
   if (!vots.length) { el.innerHTML='<div class="empty-state"><div class="ei">🗳️</div><p>No hay votaciones creadas.</p></div>'; return; }
-  el.innerHTML = vots.map(v=>`
+  el.innerHTML=vots.map(v=>`
     <div style="margin-bottom:.75rem">
-      ${votacionHTML(v, false)}
+      ${votacionHTML(v,false)}
       <div style="display:flex;gap:6px;margin-top:-4px;padding:0 4px 8px">
         <button class="btn btn-sm btn-ghost" onclick="cerrarVotacion('${v.id}')">${v.activa?'🔒 Cerrar':'🔓 Reabrir'}</button>
         <button class="btn btn-sm btn-ghost" onclick="openVotacionModal('${v.id}')">✏️ Editar</button>
@@ -1407,43 +1505,20 @@ function renderVotacionesPriv() {
     </div>`).join('');
 }
 
-// ── VISIBILIDAD EN NOVEDADES ──────────────────────────────────
-function toggleAdelantoOpts(val) {
-  document.getElementById('news-adelanto-opts').style.display = val==='adelanto' ? '' : 'none';
-}
-
+// ── UTILIDADES ────────────────────────────────────────────────
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtDate(iso) { if(!iso) return ''; return new Date(iso).toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'}); }
 function fmtDateShort(d) { if(!d) return ''; return new Date(d+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'}); }
 function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); renderVotacionesPriv(); }
 
-(function init() {
+(async function init() {
   currentUser=DB.get('current_user')||null;
   subSession=DB.get('sub_session')||null;
   updateAuthUI();
   updateSubUI();
+  await loadAll();
   renderNewsFeed();
   if (subSession) { renderVipFeed(); renderVotacionesPub(); }
-  if (!DB.get('initialized')) {
-    DB.set('initialized',true);
-    setData('tareas',[
-      {id:uid(),nombre:'Limpiar el baño',cat:'limpieza',freq:7,asignadoA:'nehue',notas:'',historial:[{quien:'rodri',fecha:new Date(Date.now()-5*864e5).toISOString().slice(0,10)},{quien:'feche',fecha:new Date(Date.now()-12*864e5).toISOString().slice(0,10)}]},
-      {id:uid(),nombre:'Pasar la aspiradora',cat:'limpieza',freq:14,asignadoA:'civo',notas:'',historial:[{quien:'civo',fecha:new Date(Date.now()-10*864e5).toISOString().slice(0,10)}]},
-      {id:uid(),nombre:'Regar las plantas',cat:'jardin',freq:3,asignadoA:'feche',notas:'Las de adentro necesitan menos agua',historial:[{quien:'feche',fecha:new Date(Date.now()-2*864e5).toISOString().slice(0,10)}]},
-      {id:uid(),nombre:'Cambiar el filtro de agua',cat:'mantenimiento',freq:90,asignadoA:'rodri',notas:'',historial:[{quien:'rodri',fecha:new Date(Date.now()-30*864e5).toISOString().slice(0,10)}]},
-    ]);
-    setData('stock',[
-      {id:uid(),nombre:'Papel higiénico',cat:'Higiene',unidad:'rollos',qty:4,min:6},
-      {id:uid(),nombre:'Aceite de girasol',cat:'Alimentos',unidad:'litros',qty:2,min:2},
-      {id:uid(),nombre:'Lavandina',cat:'Limpieza',unidad:'litros',qty:1,min:2},
-      {id:uid(),nombre:'Detergente',cat:'Limpieza',unidad:'unidades',qty:2,min:2},
-      {id:uid(),nombre:'Yerba',cat:'Alimentos',unidad:'kg',qty:0.5,min:1},
-      {id:uid(),nombre:'Azúcar',cat:'Alimentos',unidad:'kg',qty:2,min:1},
-    ]);
-    setData('news',[
-      {id:uid(),titulo:'¡Bienvenidos a La Casa Radio!',cuerpo:'Este es el espacio de la familia. Noticias, avisos y boludeces varias. ¡Bienvenidos!',tag:'novedad',autor:'feche',fecha:new Date().toISOString()},
-    ]);
-  }
 })();
 </script>
 </body>
