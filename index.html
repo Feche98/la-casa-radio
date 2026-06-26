@@ -721,12 +721,32 @@ emailjs.init({ publicKey: 'bDaUYXgNCm6nR-eWd' });
 const EMAILJS_SERVICE = 'service_43v4j16';
 const EMAILJS_TEMPLATE = 'template_lb5pnig';
 
+const FAMILY_EMAILS = {
+  feche: 'fedecherny@gmail.com',
+  rodri: 'rodrydeiu@gmail.com',
+  nehue: 'nehuenafesser@hotmail.com',
+  civo:  'francrivaro@gmail.com',
+};
+
+async function enviarEmail(to_email, titulo, cuerpo) {
+  await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, { to_email, titulo, cuerpo });
+}
+
+async function notificarFamilia(titulo, cuerpo) {
+  let ok = 0;
+  for (const email of Object.values(FAMILY_EMAILS)) {
+    try { await enviarEmail(email, titulo, cuerpo); ok++; }
+    catch(e) { console.warn('Error enviando a', email, e); }
+  }
+  if (ok > 0) toast(`📧 Familia notificada (${ok} mails)`);
+}
+
 async function notificarSuscriptores(titulo, cuerpo) {
   if (!S.suscriptores.length) return;
   let enviados = 0;
   for (const s of S.suscriptores) {
     try {
-      await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, { to_email: s.email, titulo, cuerpo: cuerpo||'' });
+      await enviarEmail(s.email, titulo, cuerpo);
       enviados++;
     } catch(e) { console.warn('Error enviando a', s.email, e); }
   }
@@ -948,6 +968,7 @@ async function subscribir() {
     S.suscriptores.push(obj);
     document.getElementById('sub-email').value='';
     toast('¡Te suscribiste a La Casa Radio!');
+    notificarFamilia('⭐ Nuevo suscriptor en La Casa Radio', `${email} se acaba de suscribir a La Casa Radio.`);
   } catch(e) { toast('Error al suscribirse'); }
 }
 
@@ -1114,9 +1135,24 @@ async function guardarStock() {
 
 async function cambiarQty(id, delta) {
   const s=S.stock.find(s=>s.id===id); if(!s) return;
+  const antes=s.qty;
   s.qty=Math.max(0, s.qty+delta);
-  try { await dbUpdate('stock', s); renderStock(); }
-  catch(e) { toast('Error al actualizar'); }
+  try {
+    await dbUpdate('stock', s); renderStock();
+    // Notificar si acaba de cruzar el mínimo (con cooldown 4h)
+    if (s.qty < s.min && antes >= s.min) {
+      const key='notif_stock_'+s.id;
+      const last=DB.get(key)||0;
+      if (Date.now()-last > 4*3600*1000) {
+        DB.set(key, Date.now());
+        const nivel=(s.qty/Math.max(s.min,1))<0.3?'crítico':'bajo';
+        notificarFamilia(
+          `📦 Stock ${nivel}: ${s.nombre}`,
+          `El stock de "${s.nombre}" está ${nivel} (${s.qty}/${s.min}${s.unidad?' '+s.unidad:''}). Puede que haya que comprarlo.`
+        );
+      }
+    }
+  } catch(e) { toast('Error al actualizar'); }
 }
 
 function eliminarStock(id) {
@@ -1606,11 +1642,37 @@ function openNotificaciones() {
     </div>`);
   }
 
-  body.innerHTML = parts.length
-    ? parts.join('')
+  const hayAlertas = parts.length > 0;
+  body.innerHTML = hayAlertas
+    ? parts.join('') + `<div style="margin-top:1rem;padding-top:1rem;border-top:.5px solid var(--cr-border)">
+        <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center" onclick="enviarResumenFamilia()">📧 Notificar a todos por mail</button>
+      </div>`
     : '<div class="empty-state" style="padding:2rem 0"><div class="ei">✅</div><p>Todo en orden, no hay alertas.</p></div>';
 
   document.getElementById('notif-modal').classList.add('open');
+}
+
+async function enviarResumenFamilia() {
+  const alerts = getAlerts();
+  const lineas = [];
+  if (alerts.tareas.length) {
+    lineas.push('📋 TAREAS:');
+    alerts.tareas.forEach(t => {
+      const label = t.dias < 0 ? `Vencida hace ${-t.dias}d` : t.dias === 0 ? 'Vence hoy' : `Vence en ${t.dias}d`;
+      lineas.push(`  • ${t.nombre} — ${label}`);
+    });
+  }
+  if (alerts.stock.length) {
+    lineas.push('📦 STOCK BAJO:');
+    alerts.stock.forEach(s => lineas.push(`  • ${s.nombre} — ${s.nivel} (${s.qty}/${s.min}${s.unidad?' '+s.unidad:''})`));
+  }
+  if (alerts.subs.length) {
+    lineas.push('⭐ NUEVOS SUSCRIPTORES:');
+    alerts.subs.forEach(s => lineas.push(`  • ${s.email}`));
+  }
+  if (!lineas.length) { toast('No hay alertas para enviar'); return; }
+  toast('Enviando mails...');
+  await notificarFamilia('🔔 Resumen de alertas — La Casa Radio', lineas.join('\n'));
 }
 
 function marcarVisto() {
