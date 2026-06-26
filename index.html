@@ -339,6 +339,14 @@
       </div>
       <div class="form-group"><label>Autor</label><input type="text" id="news-autor" readonly></div>
     </div>
+    <div class="form-group">
+      <label>Imagen (opcional)</label>
+      <input type="file" id="news-imagen" accept="image/*" onchange="previewNewsImg(this)" style="padding:6px 12px">
+      <div id="news-img-preview" style="margin-top:8px;display:none">
+        <img id="news-img-thumb" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:cover">
+        <button onclick="clearNewsImg()" style="display:block;margin-top:6px;background:none;border:none;color:var(--cr-danger);cursor:pointer;font-size:13px">✕ Quitar imagen</button>
+      </div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('news-modal')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="publicarNovedad()">Publicar</button>
@@ -630,14 +638,35 @@ function openPublicarModal() {
   document.getElementById('news-titulo').value='';
   document.getElementById('news-cuerpo').value='';
   document.getElementById('news-autor').value=USERS[currentUser]?.nombre||'';
+  document.getElementById('news-imagen').value='';
+  document.getElementById('news-img-preview').style.display='none';
   document.getElementById('news-modal').classList.add('open');
+}
+
+function previewNewsImg(input) {
+  const file=input.files[0]; if(!file) return;
+  if (file.size > 5*1024*1024) { toast('La imagen es muy grande (máx. 5MB)'); input.value=''; return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    document.getElementById('news-img-thumb').src=e.target.result;
+    document.getElementById('news-img-preview').style.display='';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearNewsImg() {
+  document.getElementById('news-imagen').value='';
+  document.getElementById('news-img-preview').style.display='none';
+  document.getElementById('news-img-thumb').src='';
 }
 
 function publicarNovedad() {
   const titulo=document.getElementById('news-titulo').value.trim();
   if (!titulo) { toast('Ingresá un título'); return; }
+  const imgSrc=document.getElementById('news-img-thumb').src;
+  const imagen=imgSrc&&imgSrc.startsWith('data:')?imgSrc:null;
   const news=getData('news');
-  news.unshift({id:uid(),titulo,cuerpo:document.getElementById('news-cuerpo').value.trim(),tag:document.getElementById('news-tag').value,autor:currentUser,fecha:new Date().toISOString()});
+  news.unshift({id:uid(),titulo,cuerpo:document.getElementById('news-cuerpo').value.trim(),tag:document.getElementById('news-tag').value,autor:currentUser,fecha:new Date().toISOString(),imagen});
   setData('news',news); closeModal('news-modal'); toast('¡Novedad publicada!'); renderNewsFeed();
 }
 
@@ -665,6 +694,7 @@ function renderNewsFeed() {
         </div>
         <div class="news-title">${esc(n.titulo)}</div>
         ${n.cuerpo?`<div class="news-body">${esc(n.cuerpo)}</div>`:''}
+        ${n.imagen?`<img src="${n.imagen}" style="margin-top:10px;max-width:100%;max-height:320px;border-radius:8px;object-fit:cover;display:block">`:''}
       </div>`;
   }).join('');
 }
