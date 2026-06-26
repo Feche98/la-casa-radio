@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Casa Radio</title>
+<style>
+  :root {
+    --cr-black: #1a1a1a;
+    --cr-blue: #2a46b0;
+    --cr-blue-dark: #1e3480;
+    --cr-yellow: #f5d400;
+    --cr-yellow-dark: #c9ac00;
+    --cr-bg: #f4f4f0;
+    --cr-card: #ffffff;
+    --cr-border: #e0ddd5;
+    --cr-text: #1a1a1a;
+    --cr-muted: #666660;
+    --cr-danger: #c0392b;
+    --cr-success: #27ae60;
+    --cr-warning: #e67e22;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--cr-bg); color: var(--cr-text); font-size: 15px; line-height: 1.6; }
+
+  /* NAV */
+  nav { background: var(--cr-black); color: white; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: white; font-size: 18px; font-weight: 600; }
+  .nav-logo img { height: 36px; width: 36px; object-fit: contain; }
+  .nav-logo-text span { color: var(--cr-yellow); }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-links button { background: none; border: none; color: #ccc; cursor: pointer; padding: 6px 14px; border-radius: 6px; font-size: 14px; transition: all .15s; }
+  .nav-links button:hover, .nav-links button.active { background: rgba(255,255,255,.1); color: white; }
+  .nav-links button.active { color: var(--cr-yellow); }
+  .nav-right { display: flex; align-items: center; gap: 10px; }
+  .btn-login { background: var(--cr-blue); color: white; border: none; padding: 7px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 500; transition: background .15s; }
+  .btn-login:hover { background: var(--cr-blue-dark); }
+  .btn-logout { background: rgba(255,255,255,.1); color: #ccc; border: none; padding: 7px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .user-badge { font-size: 13px; color: var(--cr-yellow); font-weight: 500; }
+
+  /* PAGES */
+  .page { display: none; max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .page.active { display: block; }
+
+  /* HERO PÚBLICO */
+  .hero { background: var(--cr-black); color: white; padding: 3rem 1.5rem; text-align: center; margin-bottom: 2rem; }
+  .hero-logo { width: 90px; height: 90px; object-fit: contain; margin-bottom: 1rem; }
+  .hero h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: .4rem; }
+  .hero h1 span { color: var(--cr-yellow); }
+  .hero p { color: #aaa; font-size: 1rem; max-width: 460px; margin: 0 auto; }
+
+  /* CARDS */
+  .card { background: var(--cr-card); border: 0.5px solid var(--cr-border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--cr-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .75rem; }
+
+  /* SECTION HEADERS */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+  .section-header h2 { font-size: 1.1rem; font-weight: 600; }
+
+  /* BUTTONS */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 7px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all .15s; }
+  .btn-primary { background: var(--cr-blue); color: white; }
+  .btn-primary:hover { background: var(--cr-blue-dark); }
+  .btn-sm { padding: 5px 12px; font-size: 13px; border-radius: 6px; }
+  .btn-danger { background: var(--cr-danger); color: white; }
+  .btn-ghost { background: none; border: 0.5px solid var(--cr-border); color: var(--cr-text); }
+  .btn-ghost:hover { background: var(--cr-bg); }
+  .btn-yellow { background: var(--cr-yellow); color: var(--cr-black); }
+  .btn-yellow:hover { background: var(--cr-yellow-dark); }
+
+  /* FORMS */
+  input, select, textarea { width: 100%; padding: 9px 12px; border: 0.5px solid var(--cr-border); border-radius: 7px; font-size: 14px; font-family: inherit; background: white; color: var(--cr-text); transition: border-color .15s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--cr-blue); box-shadow: 0 0 0 3px rgba(42,70,176,.12); }
+  label { font-size: 13px; font-weight: 500; color: var(--cr-muted); display: block; margin-bottom: 5px; }
+  .form-group { margin-bottom: .9rem; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* NEWS FEED */
+  .news-item { border-bottom: 0.5px solid var(--cr-border); padding: 1.1rem 0; }
+  .news-item:last-child { border-bottom: none; }
+  .news-meta { display: flex; align-items: center; gap: 10px; margin-bottom: .4rem; }
+  .news-author { font-size: 13px; font-weight: 600; background: var(--cr-blue); color: white; padding: 2px 9px; border-radius: 20px; }
+  .news-date { font-size: 12px; color: var(--cr-muted); }
+  .news-title { font-size: 1rem; font-weight: 600; margin-bottom: .3rem; }
+  .news-body { font-size: 14px; color: #444; line-height: 1.6; }
+  .news-tag { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+  .tag-aviso { background: #fff3cd; color: #856404; }
+  .tag-novedad { background: #d1ecf1; color: #0c5460; }
+  .tag-joda { background: #f8d7da; color: #721c24; }
+  .tag-info { background: #e2e8f5; color: var(--cr-blue-dark); }
+
+  /* SUBSCRIBE */
+  .subscribe-box { background: var(--cr-black); color: white; border-radius: var(--radius); padding: 1.5rem; text-align: center; margin-bottom: 1.5rem; }
+  .subscribe-box h3 { margin-bottom: .4rem; font-size: 1rem; }
+  .subscribe-box p { color: #aaa; font-size: 13px; margin-bottom: 1rem; }
+  .subscribe-form { display: flex; gap: 8px; max-width: 400px; margin: 0 auto; }
+  .subscribe-form input { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.2); color: white; }
+  .subscribe-form input::placeholder { color: rgba(255,255,255,.4); }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: 12px; padding: 1.75rem; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; }
+  .modal h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; }
+
+  /* LOGIN */
+  .login-box { max-width: 360px; margin: 3rem auto; }
+  .login-box h2 { text-align: center; margin-bottom: 1.5rem; font-size: 1.3rem; }
+  .login-logo { text-align: center; margin-bottom: 1.25rem; }
+  .login-logo img { height: 64px; }
+  .login-error { background: #fde8e8; color: var(--cr-danger); font-size: 13px; padding: 9px 12px; border-radius: 7px; margin-bottom: .75rem; display: none; }
+  .login-error.show { display: block; }
+
+  /* DASHBOARD TABS */
+  .tabs { display: flex; gap: 4px; border-bottom: 0.5px solid var(--cr-border); margin-bottom: 1.5rem; overflow-x: auto; }
+  .tab { padding: 9px 18px; font-size: 14px; font-weight: 500; color: var(--cr-muted); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all .15s; }
+  .tab:hover { color: var(--cr-text); }
+  .tab.active { color: var(--cr-blue); border-bottom-color: var(--cr-blue); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* TAREAS */
+  .tarea-item { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; padding: 1rem 0; border-bottom: 0.5px solid var(--cr-border); }
+  .tarea-item:last-child { border-bottom: none; }
+  .tarea-nombre { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+  .tarea-meta { font-size: 12px; color: var(--cr-muted); display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px; }
+  .tarea-meta span { display: flex; align-items: center; gap: 4px; }
+  .badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+  .badge-ok { background: #d4edda; color: #155724; }
+  .badge-pronto { background: #fff3cd; color: #856404; }
+  .badge-vencida { background: #f8d7da; color: #721c24; }
+  .tarea-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* STOCK */
+  .stock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .stock-item { background: white; border: 0.5px solid var(--cr-border); border-radius: var(--radius); padding: 1rem; }
+  .stock-nombre { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .stock-cat { font-size: 11px; color: var(--cr-muted); margin-bottom: 8px; }
+  .stock-qty { display: flex; align-items: center; gap: 8px; }
+  .qty-bar { flex: 1; height: 6px; background: var(--cr-border); border-radius: 3px; overflow: hidden; }
+  .qty-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+  .qty-fill.ok { background: var(--cr-success); }
+  .qty-fill.bajo { background: var(--cr-warning); }
+  .qty-fill.critico { background: var(--cr-danger); }
+  .qty-num { font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .stock-item-actions { display: flex; gap: 4px; margin-top: 10px; }
+  .btn-qty { width: 28px; height: 28px; border: 0.5px solid var(--cr-border); background: white; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: background .1s; }
+  .btn-qty:hover { background: var(--cr-bg); }
+  .stock-filter { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; }
+  .filter-btn { padding: 5px 12px; font-size: 12px; font-weight: 600; border-radius: 20px; border: 0.5px solid var(--cr-border); background: white; cursor: pointer; transition: all .15s; }
+  .filter-btn.active { background: var(--cr-blue); color: white; border-color: var(--cr-blue); }
+
+  /* CONTRASEÑAS */
+  .pwd-item { display: flex; align-items: center; gap: 12px; padding: .9rem 0; border-bottom: 0.5px solid var(--cr-border); }
+  .pwd-item:last-child { border-bottom: none; }
+  .pwd-icon { width: 38px; height: 38px; border-radius: 8px; background: var(--cr-blue); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+  .pwd-info { flex: 1; min-width: 0; }
+  .pwd-servicio { font-weight: 600; font-size: 14px; }
+  .pwd-usuario { font-size: 13px; color: var(--cr-muted); }
+  .pwd-pass { font-family: monospace; font-size: 13px; letter-spacing: .05em; }
+  .pwd-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn-icon { width: 32px; height: 32px; border: 0.5px solid var(--cr-border); background: white; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; transition: background .1s; }
+  .btn-icon:hover { background: var(--cr-bg); }
+
+  /* NOTAS */
+  .nota-item { padding: 1rem; background: #fffdf0; border-left: 3px solid var(--cr-yellow); border-radius: 0 var(--radius) var(--radius) 0; margin-bottom: .75rem; }
+  .nota-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: .4rem; }
+  .nota-titulo { font-weight: 600; font-size: 14px; }
+  .nota-fecha { font-size: 12px; color: var(--cr-muted); }
+  .nota-body { font-size: 14px; color: #444; }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--cr-muted); }
+  .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+  .empty-state p { font-size: 14px; }
+
+  /* TOAST */
+  #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--cr-black); color: white; padding: 10px 18px; border-radius: 8px; font-size: 14px; z-index: 999; transform: translateY(80px); opacity: 0; transition: all .25s; pointer-events: none; }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  /* UTIL */
+  .text-muted { color: var(--cr-muted); font-size: 13px; }
+  .mt-1 { margin-top: .5rem; }
+  .flex { display: flex; align-items: center; }
+  .gap-2 { gap: 8px; }
+  .w-full { width: 100%; }
+  hr.divider { border: none; border-top: 0.5px solid var(--cr-border); margin: 1rem 0; }
+
+  @media (max-width: 600px) {
+    .form-row { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 1.6rem; }
+    nav { padding: 0 1rem; }
+    .nav-links button { padding: 6px 10px; font-size: 13px; }
+    .subscribe-form { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="#" onclick="showPage('public'); return false;">
+    <img id="nav-logo-img" src="" alt="La Casa Radio" onerror="this.style.display='none'">
+    <div class="nav-logo-text">La Casa <span>Radio</span></div>
+  </a>
+  <div class="nav-links">
+    <button onclick="showPage('public')" id="nav-public" class="active">Inicio</button>
+    <button onclick="requireLogin()" id="nav-private">La familia</button>
+  </div>
+  <div class="nav-right">
+    <span class="user-badge" id="user-badge" style="display:none"></span>
+    <button class="btn-login" id="btn-login" onclick="openLogin()">Entrar</button>
+    <button class="btn-logout" id="btn-logout" style="display:none" onclick="logout()">Salir</button>
+  </div>
+</nav>
+
+<!-- PUBLIC PAGE -->
+<div id="page-public" class="page active">
+  <div class="hero">
+    <img class="hero-logo" id="hero-logo" src="" alt="La Casa Radio" onerror="this.style.display='none'">
+    <h1>La Casa <span>Radio</span></h1>
+    <p>Noticias, avisos y novedades de la casa</p>
+  </div>
+
+  <div style="max-width:900px; margin: 0 auto; padding: 0 0 2rem;">
+    <div class="subscribe-box">
+      <h3>Suscribite a las novedades</h3>
+      <p>Te avisamos cuando haya algo nuevo en La Casa Radio</p>
+      <div class="subscribe-form">
+        <input type="email" id="sub-email" placeholder="tu@email.com">
+        <button class="btn btn-yellow btn-sm" onclick="subscribir()">Suscribirme</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">
+        <h2>Novedades</h2>
+        <span class="text-muted" id="news-count"></span>
+      </div>
+      <div id="news-feed">
+        <div class="empty-state"><div class="empty-icon">📻</div><p>Todavía no hay novedades. ¡Pronto!</p></div>
+      </div>
+    </div>
+
+    <div class="card" id="subs-card" style="display:none">
+      <div class="card-title">Suscriptores</div>
+      <div id="subs-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PRIVATE PAGE -->
+<div id="page-private" class="page">
+  <div class="section-header" style="margin-bottom:1.5rem">
+    <h2>Panel familiar</h2>
+    <button class="btn btn-primary btn-sm" onclick="openPublicarModal()">+ Publicar novedad</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('tareas', this)">🏠 Tareas</button>
+    <button class="tab" onclick="switchTab('stock', this)">📦 Stock</button>
+    <button class="tab" onclick="switchTab('passwords', this)">🔑 Contraseñas</button>
+    <button class="tab" onclick="switchTab('notas', this)">📝 Notas</button>
+  </div>
+
+  <!-- TAREAS TAB -->
+  <div id="tab-tareas" class="tab-content active">
+    <div class="section-header">
+      <h2>Tareas del hogar</h2>
+      <button class="btn btn-primary btn-sm" onclick="openTareaModal()">+ Nueva tarea</button>
+    </div>
+    <div class="card">
+      <div id="tareas-list"></div>
+    </div>
+  </div>
+
+  <!-- STOCK TAB -->
+  <div id="tab-stock" class="tab-content">
+    <div class="section-header">
+      <h2>Stock</h2>
+      <button class="btn btn-primary btn-sm" onclick="openStockModal()">+ Agregar ítem</button>
+    </div>
+    <div class="stock-filter" id="stock-filter"></div>
+    <div id="stock-grid" class="stock-grid"></div>
+  </div>
+
+  <!-- PASSWORDS TAB -->
+  <div id="tab-passwords" class="tab-content">
+    <div class="section-header">
+      <h2>Contraseñas</h2>
+      <button class="btn btn-primary btn-sm" onclick="openPwdModal()">+ Nueva contraseña</button>
+    </div>
+    <p class="text-muted" style="margin-bottom:1rem">Guardadas localmente en este dispositivo.</p>
+    <div class="card">
+      <div id="pwd-list"></div>
+    </div>
+  </div>
+
+  <!-- NOTAS TAB -->
+  <div id="tab-notas" class="tab-content">
+    <div class="section-header">
+      <h2>Notas</h2>
+      <button class="btn btn-primary btn-sm" onclick="openNotaModal()">+ Nueva nota</button>
+    </div>
+    <div id="notas-list"></div>
+  </div>
+</div>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="login-modal">
+  <div class="modal" style="max-width:360px">
+    <div class="login-logo"><img src="" id="login-logo" alt="La Casa Radio" style="height:56px" onerror="this.style.display='none'"></div>
+    <h3 style="text-align:center; margin-bottom:1.25rem">Acceso familiar</h3>
+    <div class="login-error" id="login-error">Contraseña incorrecta</div>
+    <div class="form-group">
+      <label>Tu nombre</label>
+      <input type="text" id="login-nombre" placeholder="Ej: Mamá, Papá, Fede...">
+    </div>
+    <div class="form-group">
+      <label>Contraseña de la casa</label>
+      <input type="password" id="login-pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary w-full" style="width:100%; justify-content:center" onclick="doLogin()">Entrar</button>
+    <div class="modal-footer" style="margin-top:.75rem; justify-content:center">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('login-modal')">Cancelar</button>
+    </div>
+    <p class="text-muted" style="text-align:center; margin-top:1rem; font-size:12px">Contraseña por defecto: <strong>casaradio</strong><br>(podés cambiarla en configuración)</p>
+  </div>
+</div>
+
+<!-- MODAL PUBLICAR NOVEDAD -->
+<div class="modal-overlay" id="news-modal">
+  <div class="modal">
+    <h3>Publicar novedad</h3>
+    <div class="form-group">
+      <label>Título</label>
+      <input type="text" id="news-titulo" placeholder="Resumen en una línea">
+    </div>
+    <div class="form-group">
+      <label>Contenido</label>
+      <textarea id="news-cuerpo" rows="4" placeholder="Contá la novedad..."></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Categoría</label>
+        <select id="news-tag">
+          <option value="novedad">Novedad</option>
+          <option value="aviso">Aviso</option>
+          <option value="joda">Joda / Humor</option>
+          <option value="info">Info</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Autor</label>
+        <input type="text" id="news-autor" placeholder="Tu nombre" readonly>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('news-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="publicarNovedad()">Publicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TAREA -->
+<div class="modal-overlay" id="tarea-modal">
+  <div class="modal">
+    <h3 id="tarea-modal-title">Nueva tarea</h3>
+    <div class="form-group">
+      <label>Nombre de la tarea</label>
+      <input type="text" id="tarea-nombre" placeholder="Ej: Limpiar el baño, Regar las plantas...">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Categoría</label>
+        <select id="tarea-cat">
+          <option value="limpieza">Limpieza</option>
+          <option value="mantenimiento">Mantenimiento</option>
+          <option value="cocina">Cocina</option>
+          <option value="jardin">Jardín</option>
+          <option value="compras">Compras</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Frecuencia</label>
+        <select id="tarea-freq">
+          <option value="1">Todos los días</option>
+          <option value="2">Cada 2 días</option>
+          <option value="3">Cada 3 días</option>
+          <option value="7">Semanal</option>
+          <option value="14">Quincenal</option>
+          <option value="30">Mensual</option>
+          <option value="60">Cada 2 meses</option>
+          <option value="90">Trimestral</option>
+          <option value="180">Semestral</option>
+          <option value="365">Anual</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Última vez hecha</label>
+        <input type="date" id="tarea-fecha">
+      </div>
+      <div class="form-group">
+        <label>Hecha por</label>
+        <input type="text" id="tarea-quien" placeholder="Nombre...">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notas (opcional)</label>
+      <input type="text" id="tarea-notas" placeholder="Algún detalle adicional...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('tarea-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarTarea()">Guardar</button>
+    </div>
+    <input type="hidden" id="tarea-edit-id">
+  </div>
+</div>
+
+<!-- MODAL STOCK -->
+<div class="modal-overlay" id="stock-modal">
+  <div class="modal">
+    <h3 id="stock-modal-title">Nuevo ítem de stock</h3>
+    <div class="form-group">
+      <label>Nombre del producto</label>
+      <input type="text" id="stock-nombre" placeholder="Ej: Papel higiénico, Aceite, Detergente...">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Categoría</label>
+        <select id="stock-cat">
+          <option value="Limpieza">Limpieza</option>
+          <option value="Alimentos">Alimentos</option>
+          <option value="Higiene">Higiene</option>
+          <option value="Bebidas">Bebidas</option>
+          <option value="Medicamentos">Medicamentos</option>
+          <option value="Mascotas">Mascotas</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Unidad</label>
+        <input type="text" id="stock-unidad" placeholder="Ej: unidades, litros, kg...">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cantidad actual</label>
+        <input type="number" id="stock-qty" min="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Mínimo deseado</label>
+        <input type="number" id="stock-min" min="0" placeholder="2">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('stock-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarStock()">Guardar</button>
+    </div>
+    <input type="hidden" id="stock-edit-id">
+  </div>
+</div>
+
+<!-- MODAL CONTRASEÑA -->
+<div class="modal-overlay" id="pwd-modal">
+  <div class="modal">
+    <h3 id="pwd-modal-title">Nueva contraseña</h3>
+    <div class="form-group">
+      <label>Servicio / Sitio</label>
+      <input type="text" id="pwd-servicio" placeholder="Ej: Netflix, Wi-Fi, Banco, Instagram...">
+    </div>
+    <div class="form-group">
+      <label>Usuario / Email</label>
+      <input type="text" id="pwd-usuario" placeholder="usuario@email.com">
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <div style="position:relative">
+        <input type="password" id="pwd-password" placeholder="••••••••" style="padding-right:44px">
+        <button onclick="togglePwdInput()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;" title="Mostrar/ocultar">👁</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notas (opcional)</label>
+      <input type="text" id="pwd-nota" placeholder="Ej: cuenta de la tele del cuarto...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('pwd-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarPwd()">Guardar</button>
+    </div>
+    <input type="hidden" id="pwd-edit-id">
+  </div>
+</div>
+
+<!-- MODAL NOTA -->
+<div class="modal-overlay" id="nota-modal">
+  <div class="modal">
+    <h3 id="nota-modal-title">Nueva nota</h3>
+    <div class="form-group">
+      <label>Título</label>
+      <input type="text" id="nota-titulo" placeholder="Título de la nota">
+    </div>
+    <div class="form-group">
+      <label>Contenido</label>
+      <textarea id="nota-cuerpo" rows="5" placeholder="Escribí tu nota acá..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('nota-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarNota()">Guardar</button>
+    </div>
+    <input type="hidden" id="nota-edit-id">
+  </div>
+</div>
+
+<!-- CONFIRMAR ELIMINAR -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal" style="max-width:360px; text-align:center">
+    <div style="font-size:2rem;margin-bottom:.75rem">🗑️</div>
+    <h3 id="confirm-msg">¿Eliminar este ítem?</h3>
+    <p class="text-muted" style="margin:.5rem 0 1.25rem">Esta acción no se puede deshacer.</p>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('confirm-modal')">Cancelar</button>
+      <button class="btn btn-danger btn-sm" id="confirm-btn">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── DATA STORAGE ──────────────────────────────────────────────
+const DB = {
+  get(key) { try { return JSON.parse(localStorage.getItem('cr_'+key) || 'null'); } catch { return null; } },
+  set(key, val) { localStorage.setItem('cr_'+key, JSON.stringify(val)); },
+};
+
+function getData(key, def=[]) { return DB.get(key) ?? def; }
+function setData(key, val) { DB.set(key, val); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+// ── AUTH ──────────────────────────────────────────────────────
+let currentUser = null;
+const DEFAULT_PWD = 'casaradio';
+
+function getHousePwd() { return DB.get('house_pwd') || DEFAULT_PWD; }
+
+function doLogin() {
+  const nombre = document.getElementById('login-nombre').value.trim();
+  const pwd = document.getElementById('login-pwd').value;
+  if (!nombre) { showLoginError('Ingresá tu nombre'); return; }
+  if (pwd !== getHousePwd()) { showLoginError('Contraseña incorrecta'); return; }
+  currentUser = nombre;
+  DB.set('current_user', nombre);
+  closeModal('login-modal');
+  updateAuthUI();
+  showPage('private');
+}
+
+function logout() {
+  currentUser = null;
+  DB.set('current_user', null);
+  updateAuthUI();
+  showPage('public');
+}
+
+function requireLogin() {
+  if (currentUser) { showPage('private'); }
+  else { openLogin(); }
+}
+
+function openLogin() {
+  document.getElementById('login-error').classList.remove('show');
+  document.getElementById('login-nombre').value = DB.get('current_user') || '';
+  document.getElementById('login-pwd').value = '';
+  document.getElementById('login-modal').classList.add('open');
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function updateAuthUI() {
+  document.getElementById('user-badge').style.display = currentUser ? '' : 'none';
+  document.getElementById('user-badge').textContent = currentUser ? '👤 ' + currentUser : '';
+  document.getElementById('btn-login').style.display = currentUser ? 'none' : '';
+  document.getElementById('btn-logout').style.display = currentUser ? '' : 'none';
+  document.getElementById('nav-private').textContent = currentUser ? '🏠 La familia' : 'La familia';
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-public').classList.toggle('active', name === 'public');
+  document.getElementById('nav-private').classList.toggle('active', name === 'private');
+  if (name === 'private') { renderAll(); }
+  if (name === 'public') { renderNewsFeed(); }
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── MODALS ────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ── TOAST ─────────────────────────────────────────────────────
+function toast(msg, dur=2800) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ── CONFIRM ───────────────────────────────────────────────────
+function confirm(msg, cb) {
+  document.getElementById('confirm-msg').textContent = msg;
+  document.getElementById('confirm-btn').onclick = () => { closeModal('confirm-modal'); cb(); };
+  document.getElementById('confirm-modal').classList.add('open');
+}
+
+// ── NEWS / NOVEDADES ──────────────────────────────────────────
+function openPublicarModal() {
+  document.getElementById('news-titulo').value = '';
+  document.getElementById('news-cuerpo').value = '';
+  document.getElementById('news-autor').value = currentUser || '';
+  document.getElementById('news-modal').classList.add('open');
+}
+
+function publicarNovedad() {
+  const titulo = document.getElementById('news-titulo').value.trim();
+  const cuerpo = document.getElementById('news-cuerpo').value.trim();
+  if (!titulo) { toast('Ingresá un título'); return; }
+  const news = getData('news');
+  news.unshift({ id: uid(), titulo, cuerpo, tag: document.getElementById('news-tag').value, autor: currentUser, fecha: new Date().toISOString() });
+  setData('news', news);
+  closeModal('news-modal');
+  toast('¡Novedad publicada!');
+  renderNewsFeed();
+}
+
+function eliminarNews(id) {
+  confirm('¿Eliminar esta novedad?', () => {
+    setData('news', getData('news').filter(n => n.id !== id));
+    renderNewsFeed();
+    toast('Novedad eliminada');
+  });
+}
+
+function renderNewsFeed() {
+  const news = getData('news');
+  const feed = document.getElementById('news-feed');
+  const count = document.getElementById('news-count');
+  count.textContent = news.length ? news.length + ' publicación' + (news.length > 1 ? 'es' : '') : '';
+  if (!news.length) {
+    feed.innerHTML = '<div class="empty-state"><div class="empty-icon">📻</div><p>Todavía no hay novedades. ¡Pronto!</p></div>';
+    return;
+  }
+  feed.innerHTML = news.map(n => `
+    <div class="news-item">
+      <div class="news-meta">
+        <span class="news-author">${esc(n.autor)}</span>
+        <span class="news-tag tag-${n.tag}">${tagLabel(n.tag)}</span>
+        <span class="news-date">${fmtDate(n.fecha)}</span>
+        ${currentUser ? `<button class="btn-icon" onclick="eliminarNews('${n.id}')" title="Eliminar" style="margin-left:auto">🗑</button>` : ''}
+      </div>
+      <div class="news-title">${esc(n.titulo)}</div>
+      ${n.cuerpo ? `<div class="news-body">${esc(n.cuerpo)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function tagLabel(t) { return {novedad:'Novedad',aviso:'Aviso',joda:'😂 Joda',info:'Info'}[t] || t; }
+
+// ── SUSCRIPTORES ─────────────────────────────────────────────
+function subscribir() {
+  const email = document.getElementById('sub-email').value.trim();
+  if (!email || !email.includes('@')) { toast('Ingresá un email válido'); return; }
+  const subs = getData('suscriptores');
+  if (subs.find(s => s.email === email)) { toast('Ya estás suscripto/a'); return; }
+  subs.push({ email, fecha: new Date().toISOString() });
+  setData('suscriptores', subs);
+  document.getElementById('sub-email').value = '';
+  toast('¡Te suscribiste a La Casa Radio!');
+  renderSubs();
+}
+
+function renderSubs() {
+  const subs = getData('suscriptores');
+  const card = document.getElementById('subs-card');
+  const list = document.getElementById('subs-list');
+  if (!currentUser || !subs.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  list.innerHTML = subs.map(s => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:0.5px solid var(--cr-border)">
+      <span style="font-size:14px">${esc(s.email)}</span>
+      <span style="font-size:12px;color:var(--cr-muted)">${fmtDate(s.fecha)}</span>
+    </div>
+  `).join('');
+}
+
+// ── TAREAS ────────────────────────────────────────────────────
+function openTareaModal(id=null) {
+  document.getElementById('tarea-edit-id').value = id || '';
+  document.getElementById('tarea-modal-title').textContent = id ? 'Editar tarea' : 'Nueva tarea';
+  if (id) {
+    const t = getData('tareas').find(t => t.id === id);
+    if (!t) return;
+    document.getElementById('tarea-nombre').value = t.nombre;
+    document.getElementById('tarea-cat').value = t.cat;
+    document.getElementById('tarea-freq').value = t.freq;
+    document.getElementById('tarea-fecha').value = t.fecha || '';
+    document.getElementById('tarea-quien').value = t.quien || '';
+    document.getElementById('tarea-notas').value = t.notas || '';
+  } else {
+    document.getElementById('tarea-nombre').value = '';
+    document.getElementById('tarea-cat').value = 'limpieza';
+    document.getElementById('tarea-freq').value = '7';
+    document.getElementById('tarea-fecha').value = new Date().toISOString().slice(0,10);
+    document.getElementById('tarea-quien').value = currentUser || '';
+    document.getElementById('tarea-notas').value = '';
+  }
+  document.getElementById('tarea-modal').classList.add('open');
+}
+
+function guardarTarea() {
+  const nombre = document.getElementById('tarea-nombre').value.trim();
+  if (!nombre) { toast('Ingresá el nombre de la tarea'); return; }
+  const tareas = getData('tareas');
+  const editId = document.getElementById('tarea-edit-id').value;
+  const obj = {
+    id: editId || uid(),
+    nombre,
+    cat: document.getElementById('tarea-cat').value,
+    freq: parseInt(document.getElementById('tarea-freq').value),
+    fecha: document.getElementById('tarea-fecha').value,
+    quien: document.getElementById('tarea-quien').value.trim(),
+    notas: document.getElementById('tarea-notas').value.trim(),
+  };
+  if (editId) {
+    const idx = tareas.findIndex(t => t.id === editId);
+    if (idx !== -1) tareas[idx] = obj;
+  } else {
+    tareas.push(obj);
+  }
+  setData('tareas', tareas);
+  closeModal('tarea-modal');
+  toast(editId ? 'Tarea actualizada' : '¡Tarea agregada!');
+  renderTareas();
+}
+
+function marcarHecha(id) {
+  const tareas = getData('tareas');
+  const t = tareas.find(t => t.id === id);
+  if (!t) return;
+  t.fecha = new Date().toISOString().slice(0,10);
+  t.quien = currentUser || t.quien;
+  setData('tareas', tareas);
+  toast('✅ Tarea marcada como hecha');
+  renderTareas();
+}
+
+function eliminarTarea(id) {
+  confirm('¿Eliminar esta tarea?', () => {
+    setData('tareas', getData('tareas').filter(t => t.id !== id));
+    renderTareas();
+    toast('Tarea eliminada');
+  });
+}
+
+function renderTareas() {
+  const tareas = getData('tareas');
+  const el = document.getElementById('tareas-list');
+  if (!tareas.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No hay tareas cargadas todavía.</p></div>';
+    return;
+  }
+  tareas.sort((a,b) => diasHastaVence(a) - diasHastaVence(b));
+  el.innerHTML = tareas.map(t => {
+    const dias = diasHastaVence(t);
+    const { badge, label } = estadoTarea(dias);
+    const proxFecha = t.fecha ? addDays(t.fecha, t.freq) : null;
+    return `
+      <div class="tarea-item">
+        <div>
+          <div class="tarea-nombre">${esc(t.nombre)}</div>
+          <div style="margin-top:4px"><span class="badge ${badge}">${label}</span></div>
+          <div class="tarea-meta">
+            <span>🔁 Cada ${freqLabel(t.freq)}</span>
+            ${t.fecha ? `<span>✅ ${t.quien || '?'} — ${fmtDateShort(t.fecha)}</span>` : '<span>⏳ Nunca hecha</span>'}
+            ${proxFecha ? `<span>📅 Próxima: ${fmtDateShort(proxFecha)}</span>` : ''}
+            ${t.notas ? `<span>💬 ${esc(t.notas)}</span>` : ''}
+          </div>
+        </div>
+        <div class="tarea-actions">
+          <button class="btn btn-sm btn-ghost" onclick="marcarHecha('${t.id}')" title="Marcar como hecha">✅</button>
+          <button class="btn btn-sm btn-ghost" onclick="openTareaModal('${t.id}')" title="Editar">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="eliminarTarea('${t.id}')" title="Eliminar">🗑</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function diasHastaVence(t) {
+  if (!t.fecha) return -9999;
+  const prox = addDays(t.fecha, t.freq);
+  return Math.round((new Date(prox) - new Date()) / 86400000);
+}
+
+function estadoTarea(dias) {
+  if (dias < 0) return { badge: 'badge-vencida', label: `Vencida hace ${-dias}d` };
+  if (dias === 0) return { badge: 'badge-vencida', label: 'Vence hoy' };
+  if (dias <= 2) return { badge: 'badge-pronto', label: `Vence en ${dias}d` };
+  return { badge: 'badge-ok', label: `OK — ${dias}d` };
+}
+
+function freqLabel(d) {
+  const m = {1:'día',2:'2 días',3:'3 días',7:'semana',14:'2 semanas',30:'mes',60:'2 meses',90:'trimestre',180:'6 meses',365:'año'};
+  return m[d] || d + ' días';
+}
+
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0,10);
+}
+
+// ── STOCK ─────────────────────────────────────────────────────
+let stockCatFiltro = 'Todos';
+
+function openStockModal(id=null) {
+  document.getElementById('stock-edit-id').value = id || '';
+  document.getElementById('stock-modal-title').textContent = id ? 'Editar ítem' : 'Nuevo ítem de stock';
+  if (id) {
+    const s = getData('stock').find(s => s.id === id);
+    if (!s) return;
+    document.getElementById('stock-nombre').value = s.nombre;
+    document.getElementById('stock-cat').value = s.cat;
+    document.getElementById('stock-unidad').value = s.unidad || '';
+    document.getElementById('stock-qty').value = s.qty;
+    document.getElementById('stock-min').value = s.min;
+  } else {
+    ['stock-nombre','stock-unidad'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('stock-cat').value = 'Alimentos';
+    document.getElementById('stock-qty').value = '';
+    document.getElementById('stock-min').value = '2';
+  }
+  document.getElementById('stock-modal').classList.add('open');
+}
+
+function guardarStock() {
+  const nombre = document.getElementById('stock-nombre').value.trim();
+  if (!nombre) { toast('Ingresá el nombre del producto'); return; }
+  const stock = getData('stock');
+  const editId = document.getElementById('stock-edit-id').value;
+  const obj = {
+    id: editId || uid(),
+    nombre,
+    cat: document.getElementById('stock-cat').value,
+    unidad: document.getElementById('stock-unidad').value.trim(),
+    qty: parseFloat(document.getElementById('stock-qty').value) || 0,
+    min: parseFloat(document.getElementById('stock-min').value) || 1,
+  };
+  if (editId) {
+    const idx = stock.findIndex(s => s.id === editId);
+    if (idx !== -1) stock[idx] = obj;
+  } else { stock.push(obj); }
+  setData('stock', stock);
+  closeModal('stock-modal');
+  toast(editId ? 'Ítem actualizado' : '¡Ítem agregado!');
+  renderStock();
+}
+
+function cambiarQty(id, delta) {
+  const stock = getData('stock');
+  const s = stock.find(s => s.id === id);
+  if (!s) return;
+  s.qty = Math.max(0, s.qty + delta);
+  setData('stock', stock);
+  renderStock();
+}
+
+function eliminarStock(id) {
+  confirm('¿Eliminar este ítem del stock?', () => {
+    setData('stock', getData('stock').filter(s => s.id !== id));
+    renderStock();
+    toast('Ítem eliminado');
+  });
+}
+
+function renderStock() {
+  const stock = getData('stock');
+  const grid = document.getElementById('stock-grid');
+  const filterEl = document.getElementById('stock-filter');
+  const cats = ['Todos', ...new Set(stock.map(s => s.cat))];
+  filterEl.innerHTML = cats.map(c => `<button class="filter-btn ${c===stockCatFiltro?'active':''}" onclick="setStockFiltro('${c}')">${c}</button>`).join('');
+  const filtered = stockCatFiltro === 'Todos' ? stock : stock.filter(s => s.cat === stockCatFiltro);
+  filtered.sort((a,b) => (a.qty/a.min) - (b.qty/b.min));
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📦</div><p>No hay ítems en stock todavía.</p></div>';
+    return;
+  }
+  grid.innerHTML = filtered.map(s => {
+    const pct = Math.min(100, Math.round(s.qty / Math.max(s.min,1) * 100));
+    const cls = pct < 30 ? 'critico' : pct < 70 ? 'bajo' : 'ok';
+    const emoji = pct < 30 ? '🔴' : pct < 70 ? '🟡' : '🟢';
+    return `
+      <div class="stock-item">
+        <div class="stock-nombre">${esc(s.nombre)}</div>
+        <div class="stock-cat">${s.cat}${s.unidad ? ' · ' + s.unidad : ''}</div>
+        <div class="stock-qty">
+          <div class="qty-bar"><div class="qty-fill ${cls}" style="width:${pct}%"></div></div>
+          <span class="qty-num">${emoji} ${s.qty}/${s.min}</span>
+        </div>
+        <div class="stock-item-actions">
+          <button class="btn-qty" onclick="cambiarQty('${s.id}',-1)" title="Restar">−</button>
+          <button class="btn-qty" onclick="cambiarQty('${s.id}',1)" title="Sumar">+</button>
+          <button class="btn btn-sm btn-ghost" onclick="openStockModal('${s.id}')" style="flex:1">✏️</button>
+          <button class="btn-qty" onclick="eliminarStock('${s.id}')" title="Eliminar">🗑</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function setStockFiltro(cat) { stockCatFiltro = cat; renderStock(); }
+
+// ── CONTRASEÑAS ──────────────────────────────────────────────
+function openPwdModal(id=null) {
+  document.getElementById('pwd-edit-id').value = id || '';
+  document.getElementById('pwd-modal-title').textContent = id ? 'Editar contraseña' : 'Nueva contraseña';
+  if (id) {
+    const p = getData('passwords').find(p => p.id === id);
+    if (!p) return;
+    document.getElementById('pwd-servicio').value = p.servicio;
+    document.getElementById('pwd-usuario').value = p.usuario || '';
+    document.getElementById('pwd-password').value = p.password;
+    document.getElementById('pwd-nota').value = p.nota || '';
+  } else {
+    ['pwd-servicio','pwd-usuario','pwd-password','pwd-nota'].forEach(id => document.getElementById(id).value = '');
+  }
+  document.getElementById('pwd-password').type = 'password';
+  document.getElementById('pwd-modal').classList.add('open');
+}
+
+function togglePwdInput() {
+  const inp = document.getElementById('pwd-password');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function guardarPwd() {
+  const servicio = document.getElementById('pwd-servicio').value.trim();
+  const password = document.getElementById('pwd-password').value;
+  if (!servicio || !password) { toast('Ingresá el servicio y la contraseña'); return; }
+  const passwords = getData('passwords');
+  const editId = document.getElementById('pwd-edit-id').value;
+  const obj = {
+    id: editId || uid(),
+    servicio,
+    usuario: document.getElementById('pwd-usuario').value.trim(),
+    password,
+    nota: document.getElementById('pwd-nota').value.trim(),
+    fecha: new Date().toISOString(),
+  };
+  if (editId) {
+    const idx = passwords.findIndex(p => p.id === editId);
+    if (idx !== -1) passwords[idx] = obj;
+  } else { passwords.push(obj); }
+  setData('passwords', passwords);
+  closeModal('pwd-modal');
+  toast(editId ? 'Contraseña actualizada' : '¡Contraseña guardada!');
+  renderPasswords();
+}
+
+function eliminarPwd(id) {
+  confirm('¿Eliminar esta contraseña?', () => {
+    setData('passwords', getData('passwords').filter(p => p.id !== id));
+    renderPasswords();
+    toast('Contraseña eliminada');
+  });
+}
+
+function copiarPwd(pwd) {
+  navigator.clipboard.writeText(pwd).then(() => toast('Contraseña copiada al portapapeles'));
+}
+
+function togglePwdVis(id) {
+  const el = document.getElementById('pwd-val-' + id);
+  const p = getData('passwords').find(p => p.id === id);
+  if (!p) return;
+  el.textContent = el.dataset.visible === '1' ? '••••••••' : p.password;
+  el.dataset.visible = el.dataset.visible === '1' ? '0' : '1';
+}
+
+function renderPasswords() {
+  const passwords = getData('passwords');
+  const el = document.getElementById('pwd-list');
+  if (!passwords.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔑</div><p>No hay contraseñas guardadas todavía.</p></div>';
+    return;
+  }
+  el.innerHTML = passwords.map(p => {
+    const initials = p.servicio.slice(0,2).toUpperCase();
+    return `
+      <div class="pwd-item">
+        <div class="pwd-icon">${initials}</div>
+        <div class="pwd-info">
+          <div class="pwd-servicio">${esc(p.servicio)}</div>
+          ${p.usuario ? `<div class="pwd-usuario">${esc(p.usuario)}</div>` : ''}
+          <div class="pwd-pass"><span id="pwd-val-${p.id}" data-visible="0">••••••••</span></div>
+          ${p.nota ? `<div class="text-muted mt-1">${esc(p.nota)}</div>` : ''}
+        </div>
+        <div class="pwd-actions">
+          <button class="btn-icon" onclick="togglePwdVis('${p.id}')" title="Mostrar/ocultar">👁</button>
+          <button class="btn-icon" onclick="copiarPwd('${esc(p.password)}')" title="Copiar">📋</button>
+          <button class="btn-icon" onclick="openPwdModal('${p.id}')" title="Editar">✏️</button>
+          <button class="btn-icon" onclick="eliminarPwd('${p.id}')" title="Eliminar">🗑</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── NOTAS ────────────────────────────────────────────────────
+function openNotaModal(id=null) {
+  document.getElementById('nota-edit-id').value = id || '';
+  document.getElementById('nota-modal-title').textContent = id ? 'Editar nota' : 'Nueva nota';
+  if (id) {
+    const n = getData('notas').find(n => n.id === id);
+    if (!n) return;
+    document.getElementById('nota-titulo').value = n.titulo;
+    document.getElementById('nota-cuerpo').value = n.cuerpo;
+  } else {
+    document.getElementById('nota-titulo').value = '';
+    document.getElementById('nota-cuerpo').value = '';
+  }
+  document.getElementById('nota-modal').classList.add('open');
+}
+
+function guardarNota() {
+  const titulo = document.getElementById('nota-titulo').value.trim();
+  const cuerpo = document.getElementById('nota-cuerpo').value.trim();
+  if (!titulo) { toast('Ingresá un título para la nota'); return; }
+  const notas = getData('notas');
+  const editId = document.getElementById('nota-edit-id').value;
+  const obj = { id: editId || uid(), titulo, cuerpo, fecha: new Date().toISOString(), autor: currentUser };
+  if (editId) {
+    const idx = notas.findIndex(n => n.id === editId);
+    if (idx !== -1) notas[idx] = obj;
+  } else { notas.unshift(obj); }
+  setData('notas', notas);
+  closeModal('nota-modal');
+  toast(editId ? 'Nota actualizada' : '¡Nota guardada!');
+  renderNotas();
+}
+
+function eliminarNota(id) {
+  confirm('¿Eliminar esta nota?', () => {
+    setData('notas', getData('notas').filter(n => n.id !== id));
+    renderNotas();
+    toast('Nota eliminada');
+  });
+}
+
+function renderNotas() {
+  const notas = getData('notas');
+  const el = document.getElementById('notas-list');
+  if (!notas.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><p>No hay notas todavía.</p></div>';
+    return;
+  }
+  el.innerHTML = notas.map(n => `
+    <div class="nota-item">
+      <div class="nota-header">
+        <div class="nota-titulo">${esc(n.titulo)}</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="nota-fecha">${n.autor ? n.autor + ' · ' : ''}${fmtDate(n.fecha)}</span>
+          <button class="btn-icon" onclick="openNotaModal('${n.id}')" title="Editar">✏️</button>
+          <button class="btn-icon" onclick="eliminarNota('${n.id}')" title="Eliminar">🗑</button>
+        </div>
+      </div>
+      ${n.cuerpo ? `<div class="nota-body">${esc(n.cuerpo).replace(/\n/g,'<br>')}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-AR', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function fmtDateShort(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('es-AR', { day:'numeric', month:'short' });
+}
+
+function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); renderSubs(); }
+
+// ── INIT ──────────────────────────────────────────────────────
+(function init() {
+  currentUser = DB.get('current_user') || null;
+  updateAuthUI();
+  renderNewsFeed();
+  renderSubs();
+
+  // Try to load logo from localStorage (user can set it)
+  const logoSrc = DB.get('logo_src') || '';
+  ['nav-logo-img','hero-logo','login-logo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && logoSrc) el.src = logoSrc;
+  });
+
+  // Load sample data on first run
+  if (!DB.get('initialized')) {
+    DB.set('initialized', true);
+    setData('tareas', [
+      { id: uid(), nombre: 'Limpiar el baño', cat: 'limpieza', freq: 7, fecha: new Date(Date.now()-5*864e5).toISOString().slice(0,10), quien: 'Mamá', notas: '' },
+      { id: uid(), nombre: 'Pasar la aspiradora', cat: 'limpieza', freq: 14, fecha: new Date(Date.now()-10*864e5).toISOString().slice(0,10), quien: 'Papá', notas: '' },
+      { id: uid(), nombre: 'Regar las plantas', cat: 'jardin', freq: 3, fecha: new Date(Date.now()-2*864e5).toISOString().slice(0,10), quien: 'Fede', notas: 'Las de adentro necesitan menos agua' },
+      { id: uid(), nombre: 'Cambiar el filtro de agua', cat: 'mantenimiento', freq: 90, fecha: new Date(Date.now()-30*864e5).toISOString().slice(0,10), quien: 'Papá', notas: '' },
+    ]);
+    setData('stock', [
+      { id: uid(), nombre: 'Papel higiénico', cat: 'Higiene', unidad: 'rollos', qty: 4, min: 6 },
+      { id: uid(), nombre: 'Aceite de girasol', cat: 'Alimentos', unidad: 'litros', qty: 2, min: 2 },
+      { id: uid(), nombre: 'Lavandina', cat: 'Limpieza', unidad: 'litros', qty: 1, min: 2 },
+      { id: uid(), nombre: 'Detergente', cat: 'Limpieza', unidad: 'unidades', qty: 2, min: 2 },
+      { id: uid(), nombre: 'Yerba', cat: 'Alimentos', unidad: 'kg', qty: 0.5, min: 1 },
+      { id: uid(), nombre: 'Azúcar', cat: 'Alimentos', unidad: 'kg', qty: 2, min: 1 },
+    ]);
+    setData('news', [
+      { id: uid(), titulo: '¡Bienvenidos a La Casa Radio!', cuerpo: 'Este es el espacio de la familia para estar todos conectados. Acá van a ir apareciendo noticias, avisos y todas las boludeces que se nos ocurran. ¡Bienvenidos!', tag: 'novedad', autor: 'La Familia', fecha: new Date().toISOString() },
+    ]);
+  }
+})();
+</script>
+</body>
+</html>
