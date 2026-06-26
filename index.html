@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>La Casa Radio</title>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
   :root {
     --cr-black: #1a1a1a;
@@ -637,7 +637,7 @@
 <div id="toast"></div>
 
 <script>
-emailjs.init('bDaUYXgNCm6nR-eWd');
+emailjs.init({ publicKey: 'bDaUYXgNCm6nR-eWd' });
 const EMAILJS_SERVICE = 'service_amn4lq3';
 const EMAILJS_TEMPLATE = 'template_lb5pnig';
 
