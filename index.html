@@ -646,13 +646,12 @@
       <div class="form-group"><label>Descripción (opcional)</label><input type="text" id="t-descripcion" placeholder="Detalles..."></div>
     </div>
     <div class="form-group">
-      <label>Participantes (en orden de turno)</label>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px" id="t-participantes">
-        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;color:var(--cr-text)"><input type="checkbox" value="feche" checked style="width:16px;height:16px"> Feche</label>
-        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;color:var(--cr-text)"><input type="checkbox" value="rodri" checked style="width:16px;height:16px"> Rodri</label>
-        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;color:var(--cr-text)"><input type="checkbox" value="nehue" checked style="width:16px;height:16px"> Nehue</label>
-        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;color:var(--cr-text)"><input type="checkbox" value="civo" checked style="width:16px;height:16px"> Civo</label>
-      </div>
+      <label>Participantes <span style="font-weight:400;color:var(--cr-muted);font-size:12px">(arrastrá con ↑↓ para definir el orden del turno)</span></label>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px" id="t-participantes-list"></div>
+    </div>
+    <div class="form-group" id="t-turno-actual-row" style="display:none">
+      <label>Le toca ahora a</label>
+      <select id="t-turno-actual"></select>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('turno-modal')">Cancelar</button>
@@ -2840,38 +2839,96 @@ function turnoActual(t) {
   return t.participantes[t.turnoIdx % t.participantes.length];
 }
 
+const ALL_USERS_TURNO = ['feche','rodri','nehue','civo'];
+
+function renderTurnoParticipantesList(orden, activos) {
+  const list = document.getElementById('t-participantes-list');
+  list.innerHTML = orden.map((u, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;background:var(--cr-bg);border-radius:6px" data-user="${u}">
+      <input type="checkbox" value="${u}" ${activos.includes(u)?'checked':''} style="width:16px;height:16px" onchange="syncTurnoActualSelect()">
+      ${avatar(u,24)}
+      <span style="flex:1;font-size:14px">${USERS_NOMBRE[u]||u}</span>
+      <button type="button" class="btn-icon" style="font-size:14px;padding:0 4px" onclick="moverParticipante('${u}',-1)" ${i===0?'disabled':''}>↑</button>
+      <button type="button" class="btn-icon" style="font-size:14px;padding:0 4px" onclick="moverParticipante('${u}',1)" ${i===orden.length-1?'disabled':''}>↓</button>
+    </div>`).join('');
+}
+
+function getTurnoOrden() {
+  return [...document.querySelectorAll('#t-participantes-list [data-user]')].map(el=>el.dataset.user);
+}
+function getTurnoActivos() {
+  return [...document.querySelectorAll('#t-participantes-list input[type=checkbox]:checked')].map(cb=>cb.value);
+}
+
+function moverParticipante(user, dir) {
+  const orden = getTurnoOrden();
+  const activos = getTurnoActivos();
+  const i = orden.indexOf(user);
+  const j = i + dir;
+  if (j < 0 || j >= orden.length) return;
+  [orden[i], orden[j]] = [orden[j], orden[i]];
+  renderTurnoParticipantesList(orden, activos);
+  syncTurnoActualSelect();
+}
+
+function syncTurnoActualSelect() {
+  const activos = getTurnoActivos();
+  const sel = document.getElementById('t-turno-actual');
+  const prev = sel.value;
+  sel.innerHTML = activos.map(u=>`<option value="${u}">${USERS_NOMBRE[u]||u}</option>`).join('');
+  if (activos.includes(prev)) sel.value = prev;
+}
+
 function openTurnoModal(id=null) {
   document.getElementById('t-edit-id').value = id||'';
-  document.getElementById('turno-modal-title').textContent = id ? 'Editar turno' : 'Nuevo turno';
+  document.getElementById('turno-modal-title').textContent = id ? 'Editar tarea rotativa' : 'Nueva tarea rotativa';
   document.getElementById('t-nombre').value = '';
   document.getElementById('t-descripcion').value = '';
   document.getElementById('t-frecuencia').value = '7';
-  // reset checkboxes
-  document.querySelectorAll('#t-participantes input[type=checkbox]').forEach(cb => cb.checked = true);
+  const editRow = document.getElementById('t-turno-actual-row');
+  let orden = [...ALL_USERS_TURNO];
+  let activos = [...ALL_USERS_TURNO];
+  let turnoActualUser = null;
   if (id) {
     const t = S.turnos.find(t=>t.id===id); if(!t) return;
     document.getElementById('t-nombre').value = t.nombre;
     document.getElementById('t-descripcion').value = t.descripcion||'';
     document.getElementById('t-frecuencia').value = t.frecuencia||7;
-    document.querySelectorAll('#t-participantes input[type=checkbox]').forEach(cb => {
-      cb.checked = (t.participantes||[]).includes(cb.value);
-    });
+    activos = t.participantes||[];
+    // preserve existing order: activos first (in their order), then inactive users
+    orden = [...activos, ...ALL_USERS_TURNO.filter(u=>!activos.includes(u))];
+    turnoActualUser = turnoActual(t);
+    editRow.style.display = '';
+  } else {
+    editRow.style.display = 'none';
   }
+  renderTurnoParticipantesList(orden, activos);
+  syncTurnoActualSelect();
+  if (turnoActualUser) document.getElementById('t-turno-actual').value = turnoActualUser;
   document.getElementById('turno-modal').classList.add('open');
 }
 
 async function guardarTurno() {
   const nombre = document.getElementById('t-nombre').value.trim();
   if (!nombre) { toast('Ingresá el nombre'); return; }
-  const participantes = [...document.querySelectorAll('#t-participantes input:checked')].map(c=>c.value);
+  const orden = getTurnoOrden();
+  const activos = getTurnoActivos();
+  const participantes = orden.filter(u=>activos.includes(u));
   if (!participantes.length) { toast('Seleccioná al menos un participante'); return; }
   const editId = document.getElementById('t-edit-id').value;
   const prev = editId ? S.turnos.find(t=>t.id===editId) : null;
+  // compute turnoIdx from selected "le toca ahora a"
+  let turnoIdx = prev?.turnoIdx||0;
+  if (editId) {
+    const selUser = document.getElementById('t-turno-actual').value;
+    const idx = participantes.indexOf(selUser);
+    if (idx !== -1) turnoIdx = idx;
+  }
   const obj = {
     id: editId||uid(), nombre,
     descripcion: document.getElementById('t-descripcion').value.trim(),
     frecuencia: parseInt(document.getElementById('t-frecuencia').value)||7,
-    participantes, turnoIdx: prev?.turnoIdx||0, ultimaFecha: prev?.ultimaFecha||null,
+    participantes, turnoIdx, ultimaFecha: prev?.ultimaFecha||null,
   };
   try {
     if (editId) {
@@ -2881,7 +2938,7 @@ async function guardarTurno() {
       await dbInsert('turnos', obj);
       S.turnos.push(obj);
     }
-    closeModal('turno-modal'); renderTareas(); renderPersonal(); toast(editId?'Actualizado':'¡Turno creado!');
+    closeModal('turno-modal'); renderTareas(); renderPersonal(); toast(editId?'Actualizado':'¡Tarea rotativa creada!');
   } catch(e) { toast('Error al guardar'); }
 }
 
