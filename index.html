@@ -137,6 +137,15 @@
   .badge-pronto { background: #fff3cd; color: #856404; }
   .badge-vencida { background: #f8d7da; color: #721c24; }
   .badge-cat { background: #e8eaf6; color: #3949ab; }
+  .badge-stock-ok { background:#d4edda;color:#155724; }
+  .badge-stock-bajo { background:#fff3cd;color:#856404; }
+  .badge-stock-critico { background:#f8d7da;color:#721c24; }
+  .badge-imp-alta { background:#fef3c7;color:#92400e;font-weight:700; }
+  .badge-imp-media { background:#e8eaf6;color:#3949ab; }
+  .badge-imp-baja { background:#f3f4f6;color:#9ca3af; }
+  .stock-item.borde-ok { border-left:3px solid var(--cr-success); }
+  .stock-item.borde-bajo { border-left:3px solid var(--cr-warning); }
+  .stock-item.borde-critico { border-left:3px solid var(--cr-danger); }
 
   /* STOCK */
   .stock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
@@ -274,18 +283,22 @@
       <p>Te avisamos cuando haya algo nuevo en La Casa Radio</p>
       <div style="max-width:400px;margin:0 auto;display:flex;flex-direction:column;gap:8px">
         <input type="text" id="sub-nombre" placeholder="Tu nombre o apodo" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:white">
-        <div class="subscribe-form">
-          <input type="email" id="sub-email" placeholder="tu@email.com">
-          <button class="btn btn-yellow btn-sm" onclick="subscribir()">Suscribirme</button>
+        <input type="email" id="sub-email" placeholder="tu@email.com" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:white">
+        <div style="display:flex;gap:8px">
+          <input type="password" id="sub-password" placeholder="Elegí una contraseña" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:white;flex:1">
+          <button class="btn btn-yellow btn-sm" onclick="subscribir()" style="white-space:nowrap">Suscribirme</button>
         </div>
       </div>
     </div>
 
     <div id="sub-access-card" class="sub-access-card">
       <p>⭐ ¿Ya estás suscripto/a? Accedé a la Sala VIP</p>
-      <div style="display:flex;gap:8px">
-        <input type="email" id="sub-verify-email" placeholder="tu@email.com" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:white;flex:1">
-        <button class="btn btn-yellow btn-sm" onclick="verificarSub()" style="white-space:nowrap">Entrar al VIP</button>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <input type="email" id="sub-verify-email" placeholder="tu@email.com" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:white">
+        <div style="display:flex;gap:8px">
+          <input type="password" id="sub-verify-pwd" placeholder="Tu contraseña" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:white;flex:1">
+          <button class="btn btn-yellow btn-sm" onclick="verificarSub()" style="white-space:nowrap">Entrar al VIP</button>
+        </div>
       </div>
       <div id="sub-verify-err" style="font-size:12px;color:#ff9999;margin-top:.5rem;display:none"></div>
     </div>
@@ -552,21 +565,25 @@
     <div class="form-row">
       <div class="form-group">
         <label>Categoría</label>
-        <select id="stock-cat">
-          <option value="Limpieza">Limpieza</option>
-          <option value="Alimentos">Alimentos</option>
-          <option value="Higiene">Higiene</option>
-          <option value="Bebidas">Bebidas</option>
-          <option value="Medicamentos">Medicamentos</option>
-          <option value="Mascotas">Mascotas</option>
-          <option value="Otro">Otro</option>
+        <input type="text" id="stock-cat" placeholder="Ej: Limpieza, Alimentos..." list="stock-cats-list">
+        <datalist id="stock-cats-list"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Importancia</label>
+        <select id="stock-importancia">
+          <option value="alta">🏆 Alta — final del mundial</option>
+          <option value="media" selected>⚽ Media — cuartos de champions</option>
+          <option value="baja">🏅 Baja — 16avos de copa</option>
         </select>
       </div>
-      <div class="form-group"><label>Unidad</label><input type="text" id="stock-unidad" placeholder="unidades, litros, kg..."></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>Cantidad actual</label><input type="number" id="stock-qty" min="0" placeholder="0"></div>
-      <div class="form-group"><label>Mínimo deseado</label><input type="number" id="stock-min" min="0" placeholder="2"></div>
+    <div class="form-group">
+      <label>Estado actual</label>
+      <select id="stock-estado">
+        <option value="ok">🟢 OK — hay suficiente</option>
+        <option value="bajo">🟡 Bajo — se está acabando</option>
+        <option value="critico">🔴 Crítico — urge conseguir</option>
+      </select>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('stock-modal')">Cancelar</button>
@@ -966,15 +983,18 @@ function tagLabel(t) { return {novedad:'Novedad',aviso:'Aviso',joda:'😂 Joda',
 async function subscribir() {
   const nombre=document.getElementById('sub-nombre').value.trim();
   const email=document.getElementById('sub-email').value.trim().toLowerCase();
+  const password=document.getElementById('sub-password').value;
   if (!nombre) { toast('Ingresá tu nombre'); return; }
   if (!email||!email.includes('@')) { toast('Ingresá un email válido'); return; }
+  if (!password||password.length<4) { toast('La contraseña debe tener al menos 4 caracteres'); return; }
   if (S.suscriptores.find(s=>s.email.toLowerCase()===email)) { toast('Ya estás suscripto/a'); return; }
-  const obj={id:uid(),nombre,email,fecha:new Date().toISOString()};
+  const obj={id:uid(),nombre,email,password,fecha:new Date().toISOString()};
   try {
     await dbInsert('suscriptores', obj);
     S.suscriptores.push(obj);
     document.getElementById('sub-nombre').value='';
     document.getElementById('sub-email').value='';
+    document.getElementById('sub-password').value='';
     toast(`¡Bienvenido/a, ${nombre}! Ya estás suscripto/a.`);
     notificarFamilia('⭐ Nuevo suscriptor en La Casa Radio', `${nombre} (${email}) se acaba de suscribir a La Casa Radio.`);
   } catch(e) { toast('Error al suscribirse'); }
@@ -1103,23 +1123,25 @@ function freqLabel(d) { return {1:'día',2:'2 días',3:'3 días',7:'semana',14:'
 function addDays(s,days) { const d=new Date(s+'T12:00:00'); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
 
 // ── STOCK ─────────────────────────────────────────────────────
-let stockCatFiltro='Todos';
+let stockFiltros = { cats: new Set(), estados: new Set(), importancias: new Set() };
 
 function openStockModal(id=null) {
   document.getElementById('stock-edit-id').value=id||'';
-  document.getElementById('stock-modal-title').textContent=id?'Editar ítem':'Nuevo ítem';
+  document.getElementById('stock-modal-title').textContent=id?'Editar ítem':'Nuevo ítem de stock';
+  // Populate datalist with existing categories
+  const cats=[...new Set(S.stock.map(s=>s.cat).filter(Boolean))];
+  document.getElementById('stock-cats-list').innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join('');
   if (id) {
     const s=S.stock.find(s=>s.id===id); if(!s) return;
     document.getElementById('stock-nombre').value=s.nombre;
-    document.getElementById('stock-cat').value=s.cat;
-    document.getElementById('stock-unidad').value=s.unidad||'';
-    document.getElementById('stock-qty').value=s.qty;
-    document.getElementById('stock-min').value=s.min;
+    document.getElementById('stock-cat').value=s.cat||'';
+    document.getElementById('stock-importancia').value=s.importancia||'media';
+    document.getElementById('stock-estado').value=s.estado||'ok';
   } else {
-    ['stock-nombre','stock-unidad'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('stock-cat').value='Alimentos';
-    document.getElementById('stock-qty').value='';
-    document.getElementById('stock-min').value='2';
+    document.getElementById('stock-nombre').value='';
+    document.getElementById('stock-cat').value='';
+    document.getElementById('stock-importancia').value='media';
+    document.getElementById('stock-estado').value='ok';
   }
   document.getElementById('stock-modal').classList.add('open');
 }
@@ -1128,11 +1150,26 @@ async function guardarStock() {
   const nombre=document.getElementById('stock-nombre').value.trim();
   if (!nombre) { toast('Ingresá el nombre'); return; }
   const editId=document.getElementById('stock-edit-id').value;
-  const obj={id:editId||uid(),nombre,cat:document.getElementById('stock-cat').value,unidad:document.getElementById('stock-unidad').value.trim(),qty:parseFloat(document.getElementById('stock-qty').value)||0,min:parseFloat(document.getElementById('stock-min').value)||1};
+  const nuevoEstado=document.getElementById('stock-estado').value;
+  const obj={
+    id:editId||uid(), nombre,
+    cat:document.getElementById('stock-cat').value.trim(),
+    importancia:document.getElementById('stock-importancia').value,
+    estado:nuevoEstado,
+  };
   try {
     if (editId) {
+      const prev=S.stock.find(s=>s.id===editId);
       await dbUpdate('stock', obj);
       const i=S.stock.findIndex(s=>s.id===editId); if(i!==-1) S.stock[i]=obj;
+      if ((nuevoEstado==='bajo'||nuevoEstado==='critico') && prev?.estado==='ok') {
+        const key='notif_stock_'+obj.id;
+        const last=DB.get(key)||0;
+        if (Date.now()-last > 4*3600*1000) {
+          DB.set(key, Date.now());
+          notificarFamilia(`📦 Stock ${nuevoEstado}: ${obj.nombre}`, `El stock de "${obj.nombre}" está ${nuevoEstado}. Puede que haya que comprarlo.`);
+        }
+      }
     } else {
       await dbInsert('stock', obj);
       S.stock.push(obj);
@@ -1141,23 +1178,18 @@ async function guardarStock() {
   } catch(e) { toast('Error al guardar'); }
 }
 
-async function cambiarQty(id, delta) {
+async function cambiarEstadoStock(id, estado) {
   const s=S.stock.find(s=>s.id===id); if(!s) return;
-  const antes=s.qty;
-  s.qty=Math.max(0, s.qty+delta);
+  const prev=s.estado;
+  s.estado=estado;
   try {
     await dbUpdate('stock', s); renderStock();
-    // Notificar si acaba de cruzar el mínimo (con cooldown 4h)
-    if (s.qty < s.min && antes >= s.min) {
-      const key='notif_stock_'+s.id;
+    if ((estado==='bajo'||estado==='critico') && prev==='ok') {
+      const key='notif_stock_'+id;
       const last=DB.get(key)||0;
       if (Date.now()-last > 4*3600*1000) {
         DB.set(key, Date.now());
-        const nivel=(s.qty/Math.max(s.min,1))<0.3?'crítico':'bajo';
-        notificarFamilia(
-          `📦 Stock ${nivel}: ${s.nombre}`,
-          `El stock de "${s.nombre}" está ${nivel} (${s.qty}/${s.min}${s.unidad?' '+s.unidad:''}). Puede que haya que comprarlo.`
-        );
+        notificarFamilia(`📦 Stock ${estado}: ${s.nombre}`, `El stock de "${s.nombre}" está ${estado}. Puede que haya que comprarlo.`);
       }
     }
   } catch(e) { toast('Error al actualizar'); }
@@ -1172,48 +1204,79 @@ function eliminarStock(id) {
   });
 }
 
+const ESTADO_ORDER = { critico:0, bajo:1, ok:2 };
+const IMP_ORDER = { alta:0, media:1, baja:2 };
+
+function toggleStockFiltro(tipo, valor) {
+  const set=stockFiltros[tipo];
+  set.has(valor) ? set.delete(valor) : set.add(valor);
+  renderStock();
+}
+
 function renderStock() {
   const stock=S.stock;
   const grid=document.getElementById('stock-grid');
   const filterEl=document.getElementById('stock-filter');
-  const cats=['Todos',...new Set(stock.map(s=>s.cat))];
-  filterEl.innerHTML=cats.map(c=>`<button class="filter-btn ${c===stockCatFiltro?'active':''}" onclick="setStockFiltro('${c}')">${c}</button>`).join('');
-  const filtered=stockCatFiltro==='Todos'?stock:stock.filter(s=>s.cat===stockCatFiltro);
-  const sorted=[...filtered].sort((a,b)=>(a.qty/a.min)-(b.qty/b.min));
-  if (!sorted.length) { grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="ei">📦</div><p>No hay ítems.</p></div>'; return; }
-  grid.innerHTML=sorted.map(s=>{
-    const pct=Math.min(100,Math.round(s.qty/Math.max(s.min,1)*100));
-    const cls=pct<30?'critico':pct<70?'bajo':'ok';
-    const emoji=pct<30?'🔴':pct<70?'🟡':'🟢';
+
+  // Build filter UI
+  const cats=[...new Set(stock.map(s=>s.cat).filter(Boolean))].sort();
+  const estadoOpts=[['ok','🟢 OK'],['bajo','🟡 Bajo'],['critico','🔴 Crítico']];
+  const impOpts=[['alta','🏆 Alta'],['media','⚽ Media'],['baja','🏅 Baja']];
+
+  filterEl.innerHTML=`
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <span style="font-size:11px;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em">Estado:</span>
+      ${estadoOpts.map(([v,l])=>`<button class="filter-btn ${stockFiltros.estados.has(v)?'active':''}" onclick="toggleStockFiltro('estados','${v}')">${l}</button>`).join('')}
+      <span style="font-size:11px;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em;margin-left:8px">Importancia:</span>
+      ${impOpts.map(([v,l])=>`<button class="filter-btn ${stockFiltros.importancias.has(v)?'active':''}" onclick="toggleStockFiltro('importancias','${v}')">${l}</button>`).join('')}
+      ${cats.length ? `<span style="font-size:11px;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em;margin-left:8px">Cat:</span>${cats.map(c=>`<button class="filter-btn ${stockFiltros.cats.has(c)?'active':''}" onclick="toggleStockFiltro('cats','${esc(c)}')">${esc(c)}</button>`).join('')}` : ''}
+      ${(stockFiltros.cats.size||stockFiltros.estados.size||stockFiltros.importancias.size)?`<button class="filter-btn" onclick="stockFiltros={cats:new Set(),estados:new Set(),importancias:new Set()};renderStock()" style="margin-left:4px;opacity:.7">✕ Limpiar</button>`:''}
+    </div>`;
+
+  let filtered=[...stock];
+  if (stockFiltros.estados.size) filtered=filtered.filter(s=>stockFiltros.estados.has(s.estado||'ok'));
+  if (stockFiltros.importancias.size) filtered=filtered.filter(s=>stockFiltros.importancias.has(s.importancia||'media'));
+  if (stockFiltros.cats.size) filtered=filtered.filter(s=>stockFiltros.cats.has(s.cat));
+  filtered.sort((a,b)=>{
+    const ed=(ESTADO_ORDER[a.estado||'ok']||0)-(ESTADO_ORDER[b.estado||'ok']||0);
+    if (ed!==0) return ed;
+    return (IMP_ORDER[a.importancia||'media']||0)-(IMP_ORDER[b.importancia||'media']||0);
+  });
+
+  if (!filtered.length) { grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="ei">📦</div><p>No hay ítems.</p></div>'; return; }
+
+  const estadoLabel={ok:'🟢 OK',bajo:'🟡 Bajo',critico:'🔴 Crítico'};
+  const impLabel={alta:'🏆 Alta',media:'⚽ Media',baja:'🏅 Baja'};
+
+  grid.innerHTML=filtered.map(s=>{
+    const estado=s.estado||'ok';
+    const imp=s.importancia||'media';
     return `
-      <div class="stock-item">
+      <div class="stock-item borde-${estado}">
         <div class="stock-nombre">${esc(s.nombre)}</div>
-        <div class="stock-cat">${s.cat}${s.unidad?' · '+s.unidad:''}</div>
-        <div class="stock-qty-row">
-          <div class="qty-bar"><div class="qty-fill ${cls}" style="width:${pct}%"></div></div>
-          <span class="qty-num">${emoji} ${s.qty}/${s.min}</span>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
+          ${s.cat?`<span class="badge">${esc(s.cat)}</span>`:''}
+          <span class="badge badge-stock-${estado}">${estadoLabel[estado]}</span>
+          <span class="badge badge-imp-${imp}">${impLabel[imp]}</span>
         </div>
-        <div class="stock-item-actions">
-          <button class="btn-qty" onclick="cambiarQty('${s.id}',-1)">−</button>
-          <button class="btn-qty" onclick="cambiarQty('${s.id}',1)">+</button>
-          <button class="btn btn-sm btn-ghost" onclick="openStockModal('${s.id}')" style="flex:1">✏️</button>
-          <button class="btn-qty" onclick="eliminarStock('${s.id}')">🗑</button>
+        <div style="display:flex;gap:4px;margin-top:auto">
+          ${['ok','bajo','critico'].map(e=>`<button class="btn btn-sm ${estado===e?'btn-primary':'btn-ghost'}" style="flex:1;font-size:11px" onclick="cambiarEstadoStock('${s.id}','${e}')">${{ok:'🟢',bajo:'🟡',critico:'🔴'}[e]}</button>`).join('')}
+          <button class="btn btn-sm btn-ghost" onclick="openStockModal('${s.id}')">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="eliminarStock('${s.id}')">🗑</button>
         </div>
       </div>`;
   }).join('');
 }
-
-function setStockFiltro(cat) { stockCatFiltro=cat; renderStock(); }
 
 // ── LISTA DE COMPRAS ──────────────────────────────────────────
 let listaItems=[];
 
 function openListaCompras() {
   const stock=S.stock;
-  listaItems=stock.filter(s=>s.qty<s.min).map(s=>({
-    id:uid(), texto:s.nombre+(s.unidad?' ('+s.unidad+')':''),
+  listaItems=stock.filter(s=>s.estado==='bajo'||s.estado==='critico').map(s=>({
+    id:uid(), texto:s.nombre,
     stockId:s.id, checked:true,
-    nivel:(s.qty/Math.max(s.min,1))<0.3?'critico':'bajo', auto:true,
+    nivel:s.estado, auto:true,
   }));
   renderListaItems();
   document.getElementById('lista-nuevo').value='';
@@ -1222,7 +1285,7 @@ function openListaCompras() {
   sel.innerHTML='<option value="">— Elegir del stock —</option>';
   stock.filter(s=>!yaEnLista.has(s.id)).forEach(s=>{
     const opt=document.createElement('option');
-    opt.value=s.id; opt.textContent=s.nombre+(s.unidad?' ('+s.unidad+')':'');
+    opt.value=s.id; opt.textContent=s.nombre+(s.cat?' ('+s.cat+')':'');
     sel.appendChild(opt);
   });
   document.getElementById('lista-modal').classList.add('open');
@@ -1232,7 +1295,7 @@ function agregarDesdeStock() {
   const sel=document.getElementById('lista-stock-select');
   const stockId=sel.value; if(!stockId) return;
   const s=S.stock.find(s=>s.id===stockId); if(!s) return;
-  listaItems.push({id:uid(),texto:s.nombre+(s.unidad?' ('+s.unidad+')':''),stockId:s.id,checked:true,auto:false});
+  listaItems.push({id:uid(),texto:s.nombre,stockId:s.id,checked:true,auto:false});
   sel.querySelector(`option[value="${stockId}"]`)?.remove();
   sel.value=''; renderListaItems();
 }
@@ -1415,10 +1478,13 @@ let subSession = null;
 
 function verificarSub() {
   const email=document.getElementById('sub-verify-email').value.trim().toLowerCase();
+  const pwd=document.getElementById('sub-verify-pwd').value;
   const err=document.getElementById('sub-verify-err');
   if (!email) { err.textContent='Ingresá tu email'; err.style.display=''; return; }
+  if (!pwd) { err.textContent='Ingresá tu contraseña'; err.style.display=''; return; }
   const found=S.suscriptores.find(s=>s.email.toLowerCase()===email);
   if (!found) { err.textContent='Este email no está suscripto. ¡Suscribite primero!'; err.style.display=''; return; }
+  if (found.password && found.password !== pwd) { err.textContent='Contraseña incorrecta'; err.style.display=''; return; }
   err.style.display='none';
   subSession={email, nombre: found.nombre || email.split('@')[0]};
   DB.set('sub_session',subSession);
@@ -1623,10 +1689,8 @@ function getAlerts() {
 
   // Stock bajo / crítico
   S.stock.forEach(s => {
-    const pct = s.qty / Math.max(s.min,1);
-    if (pct < 1) {
-      const nivel = pct < 0.3 ? 'crítico' : 'bajo';
-      alerts.stock.push({ nombre: s.nombre, unidad: s.unidad, qty: s.qty, min: s.min, nivel });
+    if (s.estado === 'bajo' || s.estado === 'critico') {
+      alerts.stock.push({ nombre: s.nombre, nivel: s.estado === 'critico' ? 'crítico' : 'bajo', importancia: s.importancia || 'media' });
     }
   });
 
@@ -1676,7 +1740,7 @@ function openNotificaciones() {
       <div class="notif-section-title">Stock</div>
       ${alerts.stock.map(s => {
         const icon = s.nivel==='crítico' ? '🔴' : '🟡';
-        return `<div class="notif-item"><div class="notif-icon">${icon}</div><div class="notif-text"><div class="notif-title">${esc(s.nombre)}</div><div class="notif-sub">${s.nivel.charAt(0).toUpperCase()+s.nivel.slice(1)} — ${s.qty}/${s.min}${s.unidad?' '+s.unidad:''}</div></div></div>`;
+        return `<div class="notif-item"><div class="notif-icon">${icon}</div><div class="notif-text"><div class="notif-title">${esc(s.nombre)}</div><div class="notif-sub">${s.nivel.charAt(0).toUpperCase()+s.nivel.slice(1)}</div></div></div>`;
       }).join('')}
     </div>`);
   }
@@ -1710,7 +1774,7 @@ async function enviarResumenFamilia() {
   }
   if (alerts.stock.length) {
     lineas.push('📦 STOCK BAJO:');
-    alerts.stock.forEach(s => lineas.push(`  • ${s.nombre} — ${s.nivel} (${s.qty}/${s.min}${s.unidad?' '+s.unidad:''})`));
+    alerts.stock.forEach(s => lineas.push(`  • ${s.nombre} — ${s.nivel}`));
   }
   if (alerts.subs.length) {
     lineas.push('⭐ NUEVOS SUSCRIPTORES:');
