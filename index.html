@@ -237,15 +237,62 @@
 
   .text-muted { color: var(--cr-muted); font-size: 13px; }
 
+  .stock-search { position:relative; margin-bottom:.75rem; }
+  .stock-search input { padding-left:2.2rem; }
+  .stock-search-icon { position:absolute; left:.7rem; top:50%; transform:translateY(-50%); color:var(--cr-muted); font-size:14px; pointer-events:none; }
+
   @keyframes spin { to { transform: rotate(360deg); } }
 
   @media (max-width: 600px) {
+    /* Layout */
+    .page { padding: 1rem .85rem; }
+    .hero { padding: 1.75rem 1rem; margin-bottom: 1.25rem; }
+    .hero h1 { font-size: 1.5rem; }
+    .hero p { font-size: .875rem; }
+    .hero-logo { width: 64px; height: 64px; }
+    .card { padding: 1rem; }
+
+    /* Nav */
+    nav { padding: 0 .65rem; gap: 6px; }
+    .nav-logo-text { display: none; }
+    .nav-links button { padding: 5px 8px; font-size: 12px; }
+    #sub-nav-area .btn-sub, #sub-nav-area .btn-sub-active { font-size: 11px; padding: 5px 8px; }
+    #sub-nav-area .btn-logout { padding: 5px 8px; font-size: 11px; }
+    .btn-login { padding: 5px 10px; font-size: 12px; }
+    .btn-logout { padding: 5px 10px; font-size: 12px; }
+    .notif-bell { font-size: 15px; padding: 4px 6px; }
+
+    /* Forms */
     .form-row { grid-template-columns: 1fr; }
-    .hero h1 { font-size: 1.6rem; }
-    nav { padding: 0 .75rem; }
-    .nav-links button { padding: 6px 8px; font-size: 12px; }
-    .subscribe-form { flex-direction: column; }
     .section-header { flex-direction: column; align-items: flex-start; }
+    .section-header > div { width: 100%; }
+    .section-header > div.flex-wrap-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* Stock */
+    .stock-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stock-nombre { font-size: 13px; }
+    .stock-filter { gap: 5px; }
+    .filter-btn { padding: 4px 9px; font-size: 11px; }
+
+    /* Tabs */
+    .tabs { gap: 0; }
+    .tab { padding: 8px 10px; font-size: 12px; }
+
+    /* Modals */
+    .modal { padding: 1.25rem 1rem; }
+
+    /* Tareas */
+    .tarea-top { flex-direction: column; }
+    .tarea-actions { align-self: flex-end; }
+
+    /* Poll */
+    .poll-bar-text { font-size: 12px; padding: 0 8px; }
+
+    /* Passwords */
+    .pwd-actions { flex-direction: column; gap: 4px; }
+
+    /* Compra modal */
+    .compra-add-row { flex-direction: column; }
   }
 </style>
 </head>
@@ -343,11 +390,15 @@
   <div id="tab-stock" class="tab-content">
     <div class="section-header">
       <h2>Stock</h2>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-yellow btn-sm" onclick="openListaCompras()">🛒 Lista de compras</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" class="flex-wrap-btns">
+        <button class="btn btn-yellow btn-sm" onclick="openListaCompras()">🛒 Lista</button>
         <button class="btn btn-sm" style="background:var(--cr-success);color:white" onclick="openRegistrarCompra()">✅ Registrar compra</button>
-        <button class="btn btn-primary btn-sm" onclick="openStockModal()">+ Agregar ítem</button>
+        <button class="btn btn-primary btn-sm" onclick="openStockModal()">+ Ítem</button>
       </div>
+    </div>
+    <div class="stock-search">
+      <span class="stock-search-icon">🔍</span>
+      <input type="search" id="stock-busqueda" placeholder="Buscar en stock..." oninput="stockBusqueda=this.value;renderStock()">
     </div>
     <div class="stock-filter" id="stock-filter"></div>
     <div id="stock-grid" class="stock-grid"></div>
@@ -1150,6 +1201,7 @@ function addDays(s,days) { const d=new Date(s+'T12:00:00'); d.setDate(d.getDate(
 
 // ── STOCK ─────────────────────────────────────────────────────
 let stockFiltros = { cats: new Set(), estados: new Set(), importancias: new Set() };
+let stockBusqueda = '';
 
 function openStockModal(id=null) {
   document.getElementById('stock-edit-id').value=id||'';
@@ -1341,6 +1393,10 @@ function renderStock() {
     </div>`;
 
   let filtered=[...stock];
+  if (stockBusqueda.trim()) {
+    const q=stockBusqueda.trim().toLowerCase();
+    filtered=filtered.filter(s=>s.nombre.toLowerCase().includes(q)||(s.cat||'').toLowerCase().includes(q));
+  }
   if (stockFiltros.estados.size) filtered=filtered.filter(s=>stockFiltros.estados.has(s.estado||'ok'));
   if (stockFiltros.importancias.size) filtered=filtered.filter(s=>stockFiltros.importancias.has(s.importancia||'media'));
   if (stockFiltros.cats.size) filtered=filtered.filter(s=>stockFiltros.cats.has(s.cat));
