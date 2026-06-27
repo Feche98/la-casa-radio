@@ -1787,12 +1787,24 @@ function renderStock() {
 // ── LISTA DE COMPRAS ──────────────────────────────────────────
 let listaItems=[];
 
+function cantidadSugerida(stockId) {
+  const hist = historialItem(stockId);
+  if (!hist.length) return '';
+  const ult = hist[0];
+  const dias = diasDesde(ult.fecha);
+  if (!ult.cantidad) return '';
+  // si se acabó rápido, sugerir más
+  if (dias < 14) return Math.ceil(ult.cantidad * 1.5);
+  return ult.cantidad;
+}
+
 function openListaCompras() {
   const stock=S.stock;
   listaItems=stock.filter(s=>s.estado==='bajo'||s.estado==='critico').map(s=>({
     id:uid(), texto:s.nombre,
     stockId:s.id, checked:true,
     nivel:s.estado, auto:true,
+    cantidad: cantidadSugerida(s.id),
   }));
   renderListaItems();
   document.getElementById('lista-nuevo').value='';
@@ -1811,7 +1823,7 @@ function agregarDesdeStock() {
   const sel=document.getElementById('lista-stock-select');
   const stockId=sel.value; if(!stockId) return;
   const s=S.stock.find(s=>s.id===stockId); if(!s) return;
-  listaItems.push({id:uid(),texto:s.nombre,stockId:s.id,checked:true,auto:false});
+  listaItems.push({id:uid(),texto:s.nombre,stockId:s.id,checked:true,auto:false,cantidad:cantidadSugerida(s.id)});
   sel.querySelector(`option[value="${stockId}"]`)?.remove();
   sel.value=''; renderListaItems();
 }
@@ -1819,33 +1831,51 @@ function agregarDesdeStock() {
 function renderListaItems() {
   const el=document.getElementById('lista-items');
   if (!listaItems.length) { el.innerHTML='<p class="text-muted" style="text-align:center;padding:1.5rem 0">Todo el stock está completo. Podés agregar ítems extra abajo.</p>'; return; }
-  el.innerHTML=listaItems.map((item,i)=>`
-    <div class="compra-item">
-      <input type="checkbox" id="ci${i}" ${item.checked?'checked':''} onchange="listaItems[${i}].checked=this.checked">
-      <label for="ci${i}" style="${item.checked?'':'text-decoration:line-through;color:var(--cr-muted)'}">${esc(item.texto)}</label>
+  el.innerHTML=listaItems.map((item,i)=>{
+    const hist = item.stockId ? historialItem(item.stockId) : [];
+    const ult = hist[0];
+    const dias = ult ? diasDesde(ult.fecha) : null;
+    let hint = '';
+    if (ult && ult.cantidad && dias < 14) hint = `<span style="font-size:11px;color:#d97706" title="Se acabó en ${dias} días, conviene comprar más">⚠️ comprar más que antes</span>`;
+    else if (ult && ult.cantidad) hint = `<span style="font-size:11px;color:var(--cr-muted)">última vez: ${ult.cantidad}</span>`;
+    return `<div class="compra-item" style="flex-wrap:wrap;gap:6px">
+      <input type="checkbox" id="ci${i}" ${item.checked?'checked':''} onchange="listaItems[${i}].checked=this.checked;renderListaItems()">
+      <label for="ci${i}" style="flex:1;min-width:80px;${item.checked?'':'text-decoration:line-through;color:var(--cr-muted)'}">${esc(item.texto)}</label>
       ${item.auto?`<span class="compra-badge-${item.nivel}">${item.nivel==='critico'?'🔴 Crítico':'🟡 Bajo'}</span>`:''}
-      <button class="btn-icon" onclick="listaItems.splice(${i},1);renderListaItems()" title="Quitar">✕</button>
-    </div>`).join('');
+      <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
+        ${hint}
+        <input type="number" min="0" step="1" placeholder="cant." value="${item.cantidad||''}"
+          style="width:64px;padding:3px 6px;border-radius:6px;border:1px solid var(--cr-border);font-size:13px;background:var(--cr-bg);color:var(--cr-text)"
+          onchange="listaItems[${i}].cantidad=this.value?Number(this.value):''">
+        <button class="btn-icon" onclick="listaItems.splice(${i},1);renderListaItems()" title="Quitar">✕</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function agregarItemLista() {
   const inp=document.getElementById('lista-nuevo');
   const txt=inp.value.trim(); if(!txt) return;
-  listaItems.push({id:uid(),texto:txt,checked:true,auto:false});
+  listaItems.push({id:uid(),texto:txt,checked:true,auto:false,cantidad:''});
   inp.value=''; renderListaItems();
+}
+
+function itemListaTexto(item) {
+  const cant = item.cantidad ? ` x${item.cantidad}` : '';
+  return item.texto + cant;
 }
 
 function copiarLista() {
   const items=listaItems.filter(i=>i.checked);
   if (!items.length) { toast('No hay ítems seleccionados'); return; }
-  navigator.clipboard.writeText('🛒 Lista de compras - La Casa Radio\n\n'+items.map(i=>'• '+i.texto).join('\n')).then(()=>toast('¡Lista copiada!'));
+  navigator.clipboard.writeText('🛒 Lista de compras - La Casa Radio\n\n'+items.map(i=>'• '+itemListaTexto(i)).join('\n')).then(()=>toast('¡Lista copiada!'));
 }
 
 function imprimirLista() {
   const items=listaItems.filter(i=>i.checked);
   if (!items.length) { toast('No hay ítems seleccionados'); return; }
   const win=window.open('','_blank');
-  win.document.write(`<html><head><title>Lista de compras</title><style>body{font-family:sans-serif;padding:2rem;max-width:400px}h2{margin-bottom:1rem}li{margin:.4rem 0;font-size:16px}p{margin-top:2rem;color:#888;font-size:12px}</style></head><body><h2>🛒 Lista de compras</h2><ul>${items.map(i=>`<li>${i.texto}</li>`).join('')}</ul><p>La Casa Radio · ${new Date().toLocaleDateString('es-AR')}</p></body></html>`);
+  win.document.write(`<html><head><title>Lista de compras</title><style>body{font-family:sans-serif;padding:2rem;max-width:400px}h2{margin-bottom:1rem}li{margin:.4rem 0;font-size:16px}p{margin-top:2rem;color:#888;font-size:12px}</style></head><body><h2>🛒 Lista de compras</h2><ul>${items.map(i=>`<li>${itemListaTexto(i)}</li>`).join('')}</ul><p>La Casa Radio · ${new Date().toLocaleDateString('es-AR')}</p></body></html>`);
   win.document.close(); win.print();
 }
 
