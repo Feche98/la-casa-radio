@@ -374,6 +374,7 @@
       <h2>Stock</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-yellow btn-sm" onclick="openListaCompras()">🛒 Lista de compras</button>
+        <button class="btn btn-sm" style="background:var(--cr-success);color:white" onclick="openRegistrarCompra()">✅ Registrar compra</button>
         <button class="btn btn-primary btn-sm" onclick="openStockModal()">+ Agregar ítem</button>
       </div>
     </div>
@@ -590,6 +591,20 @@
       <button class="btn btn-primary btn-sm" onclick="guardarStock()">Guardar</button>
     </div>
     <input type="hidden" id="stock-edit-id">
+  </div>
+</div>
+
+<!-- REGISTRAR COMPRA -->
+<div class="modal-overlay" id="compra-modal">
+  <div class="modal" style="max-width:480px">
+    <h3>✅ Registrar compra</h3>
+    <p style="font-size:13px;color:var(--cr-muted);margin-bottom:1rem">Tildá lo que compraste y confirmá. Todo lo tildado vuelve a 🟢 OK.</p>
+    <div id="compra-items" style="display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto;margin-bottom:1rem"></div>
+    <div id="compra-empty" style="display:none;text-align:center;padding:2rem 0;color:var(--cr-muted);font-size:14px">🎉 Todo el stock está en orden, no hay nada que registrar.</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('compra-modal')">Cancelar</button>
+      <button class="btn btn-sm" style="background:var(--cr-success);color:white" onclick="confirmarCompra()">✅ Confirmar compra</button>
+    </div>
   </div>
 </div>
 
@@ -1202,6 +1217,54 @@ function eliminarStock(id) {
       S.stock=S.stock.filter(s=>s.id!==id); renderStock(); toast('Ítem eliminado');
     } catch(e) { toast('Error al eliminar'); }
   });
+}
+
+let compraItems = []; // { id, nombre, cat, importancia, checked }
+
+function openRegistrarCompra() {
+  const pendientes = S.stock.filter(s => s.estado === 'bajo' || s.estado === 'critico');
+  compraItems = pendientes.map(s => ({ id: s.id, nombre: s.nombre, cat: s.cat, importancia: s.importancia || 'media', checked: true }));
+  const el = document.getElementById('compra-items');
+  const empty = document.getElementById('compra-empty');
+  if (!compraItems.length) {
+    el.style.display = 'none'; empty.style.display = '';
+  } else {
+    empty.style.display = 'none'; el.style.display = '';
+    renderCompraItems();
+  }
+  document.getElementById('compra-modal').classList.add('open');
+}
+
+function renderCompraItems() {
+  const impLabel = { alta:'🏆 Alta', media:'⚽ Media', baja:'🏅 Baja' };
+  const estadoIcon = { bajo:'🟡', critico:'🔴' };
+  const s_map = Object.fromEntries(S.stock.map(s=>[s.id,s]));
+  document.getElementById('compra-items').innerHTML = compraItems.map((item, i) => {
+    const s = s_map[item.id];
+    const icon = s ? estadoIcon[s.estado] || '🟡' : '🟡';
+    return `<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:var(--cr-surface);cursor:pointer;border:1px solid var(--cr-border)">
+      <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="compraItems[${i}].checked=this.checked" style="width:18px;height:18px;cursor:pointer">
+      <span style="flex:1">
+        <span style="font-weight:600">${esc(item.nombre)}</span>
+        ${item.cat ? `<span style="font-size:12px;color:var(--cr-muted);margin-left:6px">${esc(item.cat)}</span>` : ''}
+      </span>
+      <span style="font-size:13px">${icon}</span>
+    </label>`;
+  }).join('');
+}
+
+async function confirmarCompra() {
+  const aComprar = compraItems.filter(i => i.checked);
+  if (!aComprar.length) { toast('No hay ítems seleccionados'); return; }
+  let ok = 0;
+  for (const item of aComprar) {
+    const s = S.stock.find(s => s.id === item.id); if (!s) continue;
+    s.estado = 'ok';
+    try { await dbUpdate('stock', s); ok++; } catch(e) { console.warn('Error actualizando', s.nombre, e); }
+  }
+  closeModal('compra-modal');
+  renderStock();
+  toast(`✅ ${ok} ítem${ok !== 1 ? 's' : ''} marcado${ok !== 1 ? 's' : ''} como OK`);
 }
 
 const ESTADO_ORDER = { critico:0, bajo:1, ok:2 };
