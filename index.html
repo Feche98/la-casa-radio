@@ -409,7 +409,6 @@
     <button class="tab active" onclick="switchTab('tareas',this)">🏠 Tareas</button>
     <button class="tab" onclick="switchTab('stock',this)">📦 Stock</button>
     <button class="tab" onclick="switchTab('personal',this)">👤 Mi panel</button>
-    <button class="tab" onclick="switchTab('turnos',this)">🔄 Turnos</button>
     <button class="tab" onclick="switchTab('gastos',this)">💸 Gastos</button>
     <button class="tab" onclick="switchTab('passwords',this)">🔑 Contraseñas</button>
     <button class="tab" onclick="switchTab('notas',this)">📝 Notas</button>
@@ -422,6 +421,7 @@
       <button class="btn btn-primary btn-sm" onclick="openTareaModal()">+ Nueva tarea</button>
     </div>
     <div class="card"><div id="tareas-list"></div></div>
+    <div id="turnos-subsection"></div>
   </div>
 
   <div id="tab-stock" class="tab-content">
@@ -521,15 +521,6 @@
     </div>
   </div>
 
-  <!-- TAB: TURNOS ROTATIVOS -->
-  <div id="tab-turnos" class="tab-content">
-    <div class="section-header">
-      <h2>🔄 Turnos rotativos</h2>
-      <button class="btn btn-primary btn-sm" onclick="openTurnoModal()">+ Nuevo turno</button>
-    </div>
-    <p class="text-muted" style="margin-bottom:1rem">Tareas que rotan entre los integrantes de la familia automáticamente.</p>
-    <div id="turnos-list"></div>
-  </div>
 </div>
 
 <!-- GASTO MODAL -->
@@ -1396,7 +1387,8 @@ function eliminarTarea(id) {
 function renderTareas() {
   const tareas=S.tareas;
   const el=document.getElementById('tareas-list');
-  if (!tareas.length) { el.innerHTML='<div class="empty-state"><div class="ei">✅</div><p>No hay tareas cargadas.</p></div>'; return; }
+  if (!tareas.length) { el.innerHTML='<div class="empty-state"><div class="ei">✅</div><p>No hay tareas cargadas.</p></div>'; }
+  else {
   const sorted=[...tareas].sort((a,b)=>diasHastaVence(a)-diasHastaVence(b));
   el.innerHTML=sorted.map(t=>{
     const last=t.historial?.[0];
@@ -1431,6 +1423,52 @@ function renderTareas() {
         </div>
       </div>`;
   }).join('');
+  }
+  // Turnos subsection
+  const turnosEl = document.getElementById('turnos-subsection');
+  if (turnosEl) {
+    const today = new Date().toISOString().slice(0,10);
+    turnosEl.innerHTML = `<div class="card" style="margin-top:1rem">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🔄 Tareas rotativas</span>
+        <button class="btn btn-sm btn-ghost" onclick="openTurnoModal()">+ Nueva</button>
+      </div>
+      ${S.turnos.length === 0
+        ? '<div class="empty-state"><div class="ei">🔄</div><p>No hay tareas rotativas.</p></div>'
+        : S.turnos.map(t => {
+            const actual = turnoActual(t);
+            const diasUlt = t.ultimaFecha ? diasDesde(t.ultimaFecha) : null;
+            const vencido = diasUlt !== null && diasUlt >= t.frecuencia;
+            const cls = actual === currentUser ? 'turno-card turno-asignado' : vencido ? 'turno-card turno-vencido' : 'turno-card';
+            const avatarRow = (t.participantes||[]).map((u,i) => {
+              const isNow = i === (t.turnoIdx||0) % t.participantes.length;
+              return `<span style="display:inline-flex;align-items:center;gap:3px;${isNow?'font-weight:700;color:var(--cr-blue)':'opacity:.5'}">
+                ${avatar(u,22)}<span style="font-size:12px">${USERS_NOMBRE[u]||u}</span>${i<t.participantes.length-1?'<span style="color:var(--cr-muted);margin:0 2px">→</span>':''}
+              </span>`;
+            }).join('');
+            return `<div class="${cls}">
+              <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                <div>
+                  <div style="font-weight:600;font-size:15px;margin-bottom:4px">${esc(t.nombre)}</div>
+                  ${t.descripcion?`<div style="font-size:13px;color:var(--cr-muted);margin-bottom:6px">${esc(t.descripcion)}</div>`:''}
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:8px">${avatarRow}</div>
+                  <div style="font-size:12px;color:${vencido?'var(--cr-danger)':'var(--cr-muted)'}">
+                    Cada ${t.frecuencia} días · ${diasUlt===null?'Nunca hecho':'Última vez hace '+diasUlt+'d'}${vencido?' — ¡vencido!':''}
+                    · <strong>Le toca a ${USERS_NOMBRE[actual]||actual}</strong>
+                  </div>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                  ${gcalBtn('Turno: '+t.nombre, today, '', t.descripcion||'')}
+                  <button class="btn btn-sm btn-success" onclick="marcarTurnoDone('${t.id}')">✓ Hecho</button>
+                  <button class="btn btn-sm btn-ghost" onclick="openTurnoModal('${t.id}')">✏️</button>
+                  <button class="btn btn-sm btn-ghost" onclick="eliminarTurno('${t.id}')">🗑</button>
+                </div>
+              </div>
+            </div>`;
+          }).join('')
+      }
+    </div>`;
+  }
 }
 
 function diasHastaVence(t) {
@@ -2560,7 +2598,7 @@ function renderGastos() {
   }).join('');
 }
 
-function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); renderVotacionesPriv(); renderPersonal(); renderTurnos(); renderGastos(); updateNotifBadge(); }
+function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); renderVotacionesPriv(); renderPersonal(); renderGastos(); updateNotifBadge(); }
 
 // ── GOOGLE CALENDAR ────────────────────────────────────────────
 function gcalUrl(titulo, fecha, hora='', descripcion='') {
@@ -2843,7 +2881,7 @@ async function guardarTurno() {
       await dbInsert('turnos', obj);
       S.turnos.push(obj);
     }
-    closeModal('turno-modal'); renderTurnos(); renderPersonal(); toast(editId?'Actualizado':'¡Turno creado!');
+    closeModal('turno-modal'); renderTareas(); renderPersonal(); toast(editId?'Actualizado':'¡Turno creado!');
   } catch(e) { toast('Error al guardar'); }
 }
 
@@ -2854,7 +2892,7 @@ async function marcarTurnoDone(id) {
   t.turnoIdx = (t.turnoIdx||0) + 1;
   try {
     await dbUpdate('turnos', t);
-    renderTurnos(); renderPersonal();
+    renderTareas(); renderPersonal();
     const next = turnoActual(t);
     toast(`✓ Listo — ahora le toca a ${USERS_NOMBRE[next]||next}`);
   } catch(e) { toast('Error'); }
@@ -2864,7 +2902,7 @@ async function eliminarTurno(id) {
   confirmDlg('¿Eliminar este turno?', async () => {
     try {
       await dbDelete('turnos', id);
-      S.turnos = S.turnos.filter(t=>t.id!==id); renderTurnos(); renderPersonal(); toast('Turno eliminado');
+      S.turnos = S.turnos.filter(t=>t.id!==id); renderTareas(); renderPersonal(); toast('Turno eliminado');
     } catch(e) { toast('Error'); }
   });
 }
