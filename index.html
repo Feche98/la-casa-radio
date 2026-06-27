@@ -199,9 +199,14 @@
   /* VIP & SUBS */
   .badge-vip { background: #f5d400; color: #1a1a1a; }
   .badge-adelanto { background: #e8eaf6; color: #3949ab; }
-  .sub-access-card { background: #1a1a1a; border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.5rem; color: white; border: 1px solid #333; }
-  .sub-access-card p { font-size: 13px; color: rgba(255,255,255,.65); margin-bottom: .6rem; }
-  .sub-verified-bar { background: #0d3d1e; border: 1px solid #27ae60; border-radius: var(--radius); padding: .75rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; color: white; gap: 8px; }
+  .btn-sub { background: rgba(245,212,0,.12); color: var(--cr-yellow); border: 1px solid rgba(245,212,0,.28); padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 500; white-space:nowrap; }
+  .btn-sub:hover { background: rgba(245,212,0,.22); }
+  .btn-sub-active { background: rgba(39,174,96,.15); color: #4ade80; border: 1px solid rgba(39,174,96,.3); padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: default; font-weight: 500; white-space:nowrap; }
+  .sub-modal-tabs { display:flex; border-bottom: 1px solid var(--cr-border); margin-bottom:1.25rem; }
+  .sub-modal-tab { flex:1; padding:8px; background:none; border:none; border-bottom:2px solid transparent; cursor:pointer; font-size:14px; color:var(--cr-muted); }
+  .sub-modal-tab.active { color:var(--cr-text); border-bottom-color:var(--cr-blue); font-weight:600; }
+  .sub-panel { display:none; flex-direction:column; gap:10px; }
+  .sub-panel.active { display:flex; }
   .locked-post { background: #f8f8f4; border: 1px dashed var(--cr-border); border-radius: 8px; padding: .9rem 1rem; display: flex; align-items: center; gap: 10px; color: var(--cr-muted); font-size: 14px; }
 
   /* POLLS */
@@ -255,6 +260,7 @@
     <button onclick="showPage('public')" id="nav-public" class="active">Inicio</button>
     <button onclick="requireLogin()" id="nav-private">La familia</button>
   </div>
+  <div id="sub-nav-area" style="display:flex;align-items:center"></div>
   <div class="nav-right" id="nav-right">
     <button class="btn-login" onclick="openLogin()">Entrar</button>
   </div>
@@ -278,41 +284,6 @@
     </div>
   </div>
   <div style="max-width:900px;margin:0 auto;padding:0 0 2rem">
-    <div class="subscribe-box">
-      <h3>Suscribite a las novedades</h3>
-      <p>Te avisamos cuando haya algo nuevo en La Casa Radio</p>
-      <div style="max-width:400px;margin:0 auto;display:flex;flex-direction:column;gap:8px">
-        <input type="text" id="sub-nombre" placeholder="Tu nombre o apodo" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:white">
-        <input type="email" id="sub-email" placeholder="tu@email.com" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:white">
-        <div style="display:flex;gap:8px">
-          <input type="password" id="sub-password" placeholder="Elegí una contraseña" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:white;flex:1">
-          <button class="btn btn-yellow btn-sm" onclick="subscribir()" style="white-space:nowrap">Suscribirme</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="sub-access-card" class="sub-access-card">
-      <p>⭐ ¿Ya estás suscripto/a? Accedé a la Sala VIP</p>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <input type="email" id="sub-verify-email" placeholder="tu@email.com" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:white">
-        <div style="display:flex;gap:8px">
-          <input type="password" id="sub-verify-pwd" placeholder="Tu contraseña" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:white;flex:1">
-          <button class="btn btn-yellow btn-sm" onclick="verificarSub()" style="white-space:nowrap">Entrar al VIP</button>
-        </div>
-      </div>
-      <div id="sub-verify-err" style="font-size:12px;color:#ff9999;margin-top:.5rem;display:none"></div>
-    </div>
-    <div id="sub-verified-bar" class="sub-verified-bar" style="display:none">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:1.3rem">⭐</span>
-        <div>
-          <div style="font-weight:600;font-size:14px">Acceso VIP activo</div>
-          <div style="font-size:12px;color:rgba(255,255,255,.65)" id="sub-vip-label"></div>
-        </div>
-      </div>
-      <button class="btn-logout" onclick="cerrarSesionSub()">Salir</button>
-    </div>
-
     <div id="vip-section" style="display:none">
       <div class="card">
         <div class="section-header" style="margin-bottom:1rem">
@@ -591,6 +562,35 @@
       <button class="btn btn-primary btn-sm" onclick="guardarStock()">Guardar</button>
     </div>
     <input type="hidden" id="stock-edit-id">
+  </div>
+</div>
+
+<!-- MODAL SUSCRIPTORES -->
+<div class="modal-overlay" id="sub-modal">
+  <div class="modal" style="max-width:400px">
+    <h3>⭐ Suscriptores</h3>
+    <div class="sub-modal-tabs">
+      <button class="sub-modal-tab active" id="tab-login-btn" onclick="switchSubTab('login')">Iniciar sesión</button>
+      <button class="sub-modal-tab" id="tab-register-btn" onclick="switchSubTab('register')">Suscribirme</button>
+    </div>
+    <!-- Login panel -->
+    <div class="sub-panel active" id="sub-panel-login">
+      <input type="email" id="sub-verify-email" placeholder="tu@email.com">
+      <input type="password" id="sub-verify-pwd" placeholder="Tu contraseña">
+      <div id="sub-verify-err" style="font-size:12px;color:var(--cr-danger);display:none"></div>
+      <button class="btn btn-primary" onclick="verificarSub()">Entrar al VIP ⭐</button>
+    </div>
+    <!-- Register panel -->
+    <div class="sub-panel" id="sub-panel-register">
+      <input type="text" id="sub-nombre" placeholder="Tu nombre o apodo">
+      <input type="email" id="sub-email" placeholder="tu@email.com">
+      <input type="password" id="sub-password" placeholder="Elegí una contraseña (mín. 4 caracteres)">
+      <div id="sub-register-err" style="font-size:12px;color:var(--cr-danger);display:none"></div>
+      <button class="btn btn-yellow" onclick="subscribir()">Suscribirme</button>
+    </div>
+    <div class="modal-footer" style="margin-top:.5rem">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('sub-modal')">Cerrar</button>
+    </div>
   </div>
 </div>
 
@@ -1000,20 +1000,23 @@ async function subscribir() {
   const nombre=document.getElementById('sub-nombre').value.trim();
   const email=document.getElementById('sub-email').value.trim().toLowerCase();
   const password=document.getElementById('sub-password').value;
-  if (!nombre) { toast('Ingresá tu nombre'); return; }
-  if (!email||!email.includes('@')) { toast('Ingresá un email válido'); return; }
-  if (!password||password.length<4) { toast('La contraseña debe tener al menos 4 caracteres'); return; }
-  if (S.suscriptores.find(s=>s.email.toLowerCase()===email)) { toast('Ya estás suscripto/a'); return; }
+  const err=document.getElementById('sub-register-err');
+  if (!nombre) { err.textContent='Ingresá tu nombre'; err.style.display=''; return; }
+  if (!email||!email.includes('@')) { err.textContent='Ingresá un email válido'; err.style.display=''; return; }
+  if (!password||password.length<4) { err.textContent='La contraseña debe tener al menos 4 caracteres'; err.style.display=''; return; }
+  if (S.suscriptores.find(s=>s.email.toLowerCase()===email)) { err.textContent='Este email ya está suscripto — iniciá sesión'; err.style.display=''; return; }
+  err.style.display='none';
   const obj={id:uid(),nombre,email,password,fecha:new Date().toISOString()};
   try {
     await dbInsert('suscriptores', obj);
     S.suscriptores.push(obj);
-    document.getElementById('sub-nombre').value='';
-    document.getElementById('sub-email').value='';
-    document.getElementById('sub-password').value='';
-    toast(`¡Bienvenido/a, ${nombre}! Ya estás suscripto/a.`);
+    subSession={email, nombre};
+    DB.set('sub_session',subSession);
+    closeModal('sub-modal');
+    updateSubUI(); renderNewsFeed(); renderVipFeed(); renderVotacionesPub();
+    toast(`¡Bienvenido/a, ${nombre}! Ya estás suscripto/a ⭐`);
     notificarFamilia('⭐ Nuevo suscriptor en La Casa Radio', `${nombre} (${email}) se acaba de suscribir a La Casa Radio.`);
-  } catch(e) { toast('Error al suscribirse'); }
+  } catch(e) { err.textContent='Error al suscribirse, intentá de nuevo'; err.style.display=''; }
 }
 
 // ── TAREAS ────────────────────────────────────────────────────
@@ -1589,12 +1592,14 @@ function verificarSub() {
   if (!email) { err.textContent='Ingresá tu email'; err.style.display=''; return; }
   if (!pwd) { err.textContent='Ingresá tu contraseña'; err.style.display=''; return; }
   const found=S.suscriptores.find(s=>s.email.toLowerCase()===email);
-  if (!found) { err.textContent='Este email no está suscripto. ¡Suscribite primero!'; err.style.display=''; return; }
+  if (!found) { err.textContent='Email no encontrado — ¿te suscribiste?'; err.style.display=''; return; }
   if (found.password && found.password !== pwd) { err.textContent='Contraseña incorrecta'; err.style.display=''; return; }
   err.style.display='none';
   subSession={email, nombre: found.nombre || email.split('@')[0]};
   DB.set('sub_session',subSession);
+  closeModal('sub-modal');
   updateSubUI(); renderNewsFeed(); renderVipFeed(); renderVotacionesPub();
+  toast(`¡Bienvenido/a, ${subSession.nombre}! ⭐`);
 }
 
 function cerrarSesionSub() {
@@ -1602,17 +1607,35 @@ function cerrarSesionSub() {
   updateSubUI(); renderNewsFeed();
 }
 
+function openSubModal(tab='login') {
+  switchSubTab(tab);
+  // clear fields
+  ['sub-verify-email','sub-verify-pwd','sub-nombre','sub-email','sub-password'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  ['sub-verify-err','sub-register-err'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.style.display='none';
+  });
+  document.getElementById('sub-modal').classList.add('open');
+}
+
+function switchSubTab(tab) {
+  document.getElementById('sub-panel-login').classList.toggle('active', tab==='login');
+  document.getElementById('sub-panel-register').classList.toggle('active', tab==='register');
+  document.getElementById('tab-login-btn').classList.toggle('active', tab==='login');
+  document.getElementById('tab-register-btn').classList.toggle('active', tab==='register');
+}
+
 function updateSubUI() {
-  const card=document.getElementById('sub-access-card');
-  const bar=document.getElementById('sub-verified-bar');
-  const vipSection=document.getElementById('vip-section');
+  const area = document.getElementById('sub-nav-area');
+  const vipSection = document.getElementById('vip-section');
   if (subSession) {
-    card.style.display='none'; bar.style.display='';
-    document.getElementById('sub-vip-label').textContent=subSession.email;
-    vipSection.style.display='';
+    area.innerHTML = `<span class="btn-sub-active">⭐ ${esc(subSession.nombre)}</span>
+      <button class="btn-logout" onclick="cerrarSesionSub()" style="margin-left:6px">Salir</button>`;
+    if (vipSection) vipSection.style.display='';
   } else {
-    card.style.display=''; bar.style.display='none';
-    vipSection.style.display='none';
+    area.innerHTML = `<button class="btn-sub" onclick="openSubModal()">⭐ Suscriptores</button>`;
+    if (vipSection) vipSection.style.display='none';
   }
 }
 
