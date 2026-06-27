@@ -615,6 +615,10 @@
         <option value="critico">🔴 Crítico — urge conseguir</option>
       </select>
     </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:10px;margin-bottom:.5rem">
+      <input type="checkbox" id="stock-perecedero" style="width:18px;height:18px;flex-shrink:0;cursor:pointer">
+      <label for="stock-perecedero" style="margin:0;cursor:pointer;font-size:14px;font-weight:500;color:var(--cr-text)">🥬 Perecedero <span style="font-size:12px;color:var(--cr-muted);font-weight:400">(se vence — frutas, lácteos, carnes...)</span></label>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('stock-modal')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="guardarStock()">Guardar</button>
@@ -1215,11 +1219,13 @@ function openStockModal(id=null) {
     document.getElementById('stock-cat').value=s.cat||'';
     document.getElementById('stock-importancia').value=s.importancia||'media';
     document.getElementById('stock-estado').value=s.estado||'ok';
+    document.getElementById('stock-perecedero').checked=!!s.perecedero;
   } else {
     document.getElementById('stock-nombre').value='';
     document.getElementById('stock-cat').value='';
     document.getElementById('stock-importancia').value='media';
     document.getElementById('stock-estado').value='ok';
+    document.getElementById('stock-perecedero').checked=false;
   }
   document.getElementById('stock-modal').classList.add('open');
 }
@@ -1234,6 +1240,7 @@ async function guardarStock() {
     cat:document.getElementById('stock-cat').value.trim(),
     importancia:document.getElementById('stock-importancia').value,
     estado:nuevoEstado,
+    perecedero:document.getElementById('stock-perecedero').checked,
   };
   try {
     if (editId) {
@@ -1298,8 +1305,10 @@ function diasDesde(fechaISO) {
   return Math.floor((Date.now() - new Date(fechaISO).getTime()) / 86400000);
 }
 
-// Devuelve un array de hints { texto, color, emoji } para un ítem del stock
+// Devuelve un array de hints { texto, color, key } para un ítem del stock
 function sugerenciasCompra(stockId, modo='modal') {
+  const s = S.stock.find(s => s.id === stockId);
+  const perecedero = s?.perecedero || false;
   const hist = historialItem(stockId);
   if (!hist.length) return [];
   const hints = [];
@@ -1311,13 +1320,24 @@ function sugerenciasCompra(stockId, modo='modal') {
   const diasLabel = dias === 0 ? 'hoy' : `hace ${dias} día${dias !== 1 ? 's' : ''}`;
   hints.push({ texto: `🛒 Última compra: ${diasLabel}${cantTxt}`, color: 'var(--cr-muted)', key: 'ultima' });
 
-  // Regla 1: comprado hace menos de 2 semanas → se acabó rápido, comprá más
-  if (dias < 14) {
-    const extra = ult.cantidad ? `, conviene comprar más que ${ult.cantidad}` : ', conviene comprar más que la última vez';
-    hints.push({ texto: `⚠️ Se acabó en menos de 2 semanas${extra}`, color: '#d97706', key: 'reciente' });
+  if (perecedero) {
+    // Perecedero: avisa si la última compra fue hace más de 1 semana (probablemente vencido)
+    if (dias > 7) {
+      hints.push({ texto: `⚠️ Perecedero comprado hace ${dias} días — puede estar vencido`, color: '#dc2626', key: 'vencido' });
+    }
+  } else {
+    // No perecedero: avisa si se acabó en menos de 2 semanas (se gasta rápido)
+    if (dias < 14) {
+      const extra = ult.cantidad ? `, conviene comprar más que ${ult.cantidad}` : ', conviene comprar más que la última vez';
+      hints.push({ texto: `⚠️ Se acabó en menos de 2 semanas${extra}`, color: '#d97706', key: 'reciente' });
+    }
+    // Más de 3 meses sin comprar
+    if (dias > 90) {
+      hints.push({ texto: `⏳ No lo comprás hace más de 3 meses`, color: 'var(--cr-muted)', key: 'olvidado' });
+    }
   }
 
-  // Regla 2: ≥ 2 compras → frecuencia promedio
+  // ≥ 2 compras → frecuencia promedio (aplica para todos)
   if (hist.length >= 2) {
     const gaps = [];
     for (let i = 0; i < hist.length - 1; i++) {
@@ -1334,14 +1354,9 @@ function sugerenciasCompra(stockId, modo='modal') {
     }
   }
 
-  // Regla 3: más de 3 meses sin comprar
-  if (dias > 90) {
-    hints.push({ texto: `⏳ No lo comprás hace más de 3 meses`, color: 'var(--cr-muted)', key: 'olvidado' });
-  }
-
-  // En modo tarjeta de stock mostramos solo la más relevante
+  // En modo tarjeta mostramos solo el hint más relevante
   if (modo === 'card') {
-    const prioridad = ['reciente', 'frecuencia', 'olvidado', 'ultima'];
+    const prioridad = ['vencido', 'reciente', 'frecuencia', 'olvidado', 'ultima'];
     for (const key of prioridad) {
       const h = hints.find(h => h.key === key);
       if (h) return [h];
@@ -1476,6 +1491,7 @@ function renderStock() {
           ${s.cat?`<span class="badge">${esc(s.cat)}</span>`:''}
           <span class="badge badge-stock-${estado}">${estadoLabel[estado]}</span>
           <span class="badge badge-imp-${imp}">${impLabel[imp]}</span>
+          ${s.perecedero?`<span class="badge" style="background:#dcfce7;color:#166534">🥬 Perecedero</span>`:''}
         </div>
         ${ultTxt}
         <div style="display:flex;gap:4px;margin-top:8px">
@@ -1943,13 +1959,20 @@ async function agregarComentario(newsId) {
 
 // ── NOTIFICACIONES ────────────────────────────────────────────
 function getAlerts() {
-  const alerts = { stock:[], tareas:[], subs:[] };
+  const alerts = { stock:[], tareas:[], subs:[], vencidos:[] };
   const today = new Date().toISOString().slice(0,10);
 
   // Stock bajo / crítico
   S.stock.forEach(s => {
     if (s.estado === 'bajo' || s.estado === 'critico') {
       alerts.stock.push({ nombre: s.nombre, nivel: s.estado === 'critico' ? 'crítico' : 'bajo', importancia: s.importancia || 'media' });
+    }
+    // Perecederos comprados hace más de 1 semana
+    if (s.perecedero) {
+      const ult = ultimaCompra(s.id);
+      if (ult && diasDesde(ult.fecha) > 7) {
+        alerts.vencidos.push({ nombre: s.nombre, dias: diasDesde(ult.fecha) });
+      }
     }
   });
 
@@ -1967,7 +1990,7 @@ function getAlerts() {
 }
 
 function alertCount(alerts) {
-  return alerts.stock.length + alerts.tareas.length + alerts.subs.length;
+  return alerts.stock.length + alerts.tareas.length + alerts.subs.length + (alerts.vencidos||[]).length;
 }
 
 function updateNotifBadge() {
@@ -2001,6 +2024,13 @@ function openNotificaciones() {
         const icon = s.nivel==='crítico' ? '🔴' : '🟡';
         return `<div class="notif-item"><div class="notif-icon">${icon}</div><div class="notif-text"><div class="notif-title">${esc(s.nombre)}</div><div class="notif-sub">${s.nivel.charAt(0).toUpperCase()+s.nivel.slice(1)}</div></div></div>`;
       }).join('')}
+    </div>`);
+  }
+
+  if (alerts.vencidos && alerts.vencidos.length) {
+    parts.push(`<div class="notif-section">
+      <div class="notif-section-title">🥬 Perecederos — posiblemente vencidos</div>
+      ${alerts.vencidos.map(v => `<div class="notif-item"><div class="notif-icon">⚠️</div><div class="notif-text"><div class="notif-title">${esc(v.nombre)}</div><div class="notif-sub">Comprado hace ${v.dias} días — puede estar vencido</div></div></div>`).join('')}
     </div>`);
   }
 
