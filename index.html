@@ -709,7 +709,7 @@ const _SB = supabase.createClient(
 );
 
 // ── ESTADO EN MEMORIA ─────────────────────────────────────────
-const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[], comentarios:[] };
+const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[], comentarios:[], compras:[] };
 
 async function dbLoad(table) {
   const { data, error } = await _SB.from(table).select('data').order('created_at', { ascending: true });
@@ -733,9 +733,9 @@ async function loadAll() {
   const ld = document.getElementById('loading');
   ld.style.display = 'flex';
   try {
-    const [news, tareas, stock, passwords, notas, subs, vots, cmts] = await Promise.all([
+    const [news, tareas, stock, passwords, notas, subs, vots, cmts, compras] = await Promise.all([
       dbLoad('news'), dbLoad('tareas'), dbLoad('stock'),
-      dbLoad('passwords'), dbLoad('notas'), dbLoad('suscriptores'), dbLoad('votaciones'), dbLoad('comentarios')
+      dbLoad('passwords'), dbLoad('notas'), dbLoad('suscriptores'), dbLoad('votaciones'), dbLoad('comentarios'), dbLoad('compras')
     ]);
     S.news = news.reverse();
     S.tareas = tareas;
@@ -745,6 +745,7 @@ async function loadAll() {
     S.suscriptores = subs;
     S.votaciones = vots.reverse();
     S.comentarios = cmts;
+    S.compras = compras;
   } catch(e) {
     console.error('loadAll', e);
     toast('Error conectando a Supabase');
@@ -1219,11 +1220,22 @@ function eliminarStock(id) {
   });
 }
 
-let compraItems = []; // { id, nombre, cat, importancia, checked }
+let compraItems = []; // { id, nombre, cat, importancia, checked, cantidad }
+
+function ultimaCompra(stockId) {
+  // Returns the most recent compra record for this stockId, or null
+  return S.compras
+    .filter(c => c.stockId === stockId)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))[0] || null;
+}
+
+function diasDesde(fechaISO) {
+  return Math.floor((Date.now() - new Date(fechaISO).getTime()) / 86400000);
+}
 
 function openRegistrarCompra() {
   const pendientes = S.stock.filter(s => s.estado === 'bajo' || s.estado === 'critico');
-  compraItems = pendientes.map(s => ({ id: s.id, nombre: s.nombre, cat: s.cat, importancia: s.importancia || 'media', checked: true }));
+  compraItems = pendientes.map(s => ({ id: s.id, nombre: s.nombre, cat: s.cat, importancia: s.importancia || 'media', checked: true, cantidad: '' }));
   const el = document.getElementById('compra-items');
   const empty = document.getElementById('compra-empty');
   if (!compraItems.length) {
@@ -1236,31 +1248,53 @@ function openRegistrarCompra() {
 }
 
 function renderCompraItems() {
-  const impLabel = { alta:'🏆 Alta', media:'⚽ Media', baja:'🏅 Baja' };
   const estadoIcon = { bajo:'🟡', critico:'🔴' };
   const s_map = Object.fromEntries(S.stock.map(s=>[s.id,s]));
   document.getElementById('compra-items').innerHTML = compraItems.map((item, i) => {
     const s = s_map[item.id];
-    const icon = s ? estadoIcon[s.estado] || '🟡' : '🟡';
-    return `<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:var(--cr-surface);cursor:pointer;border:1px solid var(--cr-border)">
-      <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="compraItems[${i}].checked=this.checked" style="width:18px;height:18px;cursor:pointer">
-      <span style="flex:1">
-        <span style="font-weight:600">${esc(item.nombre)}</span>
-        ${item.cat ? `<span style="font-size:12px;color:var(--cr-muted);margin-left:6px">${esc(item.cat)}</span>` : ''}
-      </span>
-      <span style="font-size:13px">${icon}</span>
-    </label>`;
+    const icon = s ? (estadoIcon[s.estado] || '🟡') : '🟡';
+    const ult = ultimaCompra(item.id);
+    let hint = '';
+    if (ult) {
+      const dias = diasDesde(ult.fecha);
+      const cantTxt = ult.cantidad ? ` · compraste ${ult.cantidad}` : '';
+      const color = dias <= 7 ? '#f59e0b' : 'var(--cr-muted)';
+      const warn = dias <= 7 ? '⚠️ ' : '';
+      hint = `<div style="font-size:11px;color:${color};margin-top:2px">${warn}Última compra: hace ${dias === 0 ? 'hoy' : dias + ' día' + (dias !== 1 ? 's' : '')}${cantTxt}</div>`;
+    }
+    return `<div style="padding:10px 12px;border-radius:8px;background:var(--cr-surface);border:1px solid var(--cr-border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" id="ci_${i}" ${item.checked ? 'checked' : ''} onchange="compraItems[${i}].checked=this.checked" style="width:18px;height:18px;cursor:pointer;flex-shrink:0">
+        <label for="ci_${i}" style="flex:1;cursor:pointer">
+          <span style="font-weight:600">${esc(item.nombre)}</span>
+          ${item.cat ? `<span style="font-size:12px;color:var(--cr-muted);margin-left:6px">${esc(item.cat)}</span>` : ''}
+          ${hint}
+        </label>
+        <span style="font-size:13px">${icon}</span>
+        <input type="number" min="0" step="any" placeholder="Cant." value="${item.cantidad}"
+          oninput="compraItems[${i}].cantidad=this.value"
+          style="width:70px;font-size:13px;background:var(--cr-bg);border:1px solid var(--cr-border);border-radius:6px;padding:4px 8px;color:var(--cr-text)">
+      </div>
+    </div>`;
   }).join('');
 }
 
 async function confirmarCompra() {
   const aComprar = compraItems.filter(i => i.checked);
   if (!aComprar.length) { toast('No hay ítems seleccionados'); return; }
+  const fecha = new Date().toISOString();
   let ok = 0;
   for (const item of aComprar) {
     const s = S.stock.find(s => s.id === item.id); if (!s) continue;
     s.estado = 'ok';
-    try { await dbUpdate('stock', s); ok++; } catch(e) { console.warn('Error actualizando', s.nombre, e); }
+    try {
+      await dbUpdate('stock', s);
+      // Guardar en historial
+      const rec = { id: uid(), stockId: item.id, nombre: item.nombre, cantidad: item.cantidad || null, fecha, usuario: currentUser };
+      await dbInsert('compras', rec);
+      S.compras.push(rec);
+      ok++;
+    } catch(e) { console.warn('Error actualizando', s.nombre, e); }
   }
   closeModal('compra-modal');
   renderStock();
@@ -1314,15 +1348,24 @@ function renderStock() {
   grid.innerHTML=filtered.map(s=>{
     const estado=s.estado||'ok';
     const imp=s.importancia||'media';
+    const ult=ultimaCompra(s.id);
+    let ultTxt='';
+    if (ult) {
+      const dias=diasDesde(ult.fecha);
+      const cantTxt=ult.cantidad?` · ${ult.cantidad}`:'';
+      const warn=dias<=7?' ⚠️':'';
+      ultTxt=`<div style="font-size:11px;color:var(--cr-muted);margin-top:4px">🛒 ${dias===0?'Hoy':'Hace '+dias+'d'}${cantTxt}${warn}</div>`;
+    }
     return `
       <div class="stock-item borde-${estado}">
         <div class="stock-nombre">${esc(s.nombre)}</div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">
           ${s.cat?`<span class="badge">${esc(s.cat)}</span>`:''}
           <span class="badge badge-stock-${estado}">${estadoLabel[estado]}</span>
           <span class="badge badge-imp-${imp}">${impLabel[imp]}</span>
         </div>
-        <div style="display:flex;gap:4px;margin-top:auto">
+        ${ultTxt}
+        <div style="display:flex;gap:4px;margin-top:8px">
           ${['ok','bajo','critico'].map(e=>`<button class="btn btn-sm ${estado===e?'btn-primary':'btn-ghost'}" style="flex:1;font-size:11px" onclick="cambiarEstadoStock('${s.id}','${e}')">${{ok:'🟢',bajo:'🟡',critico:'🔴'}[e]}</button>`).join('')}
           <button class="btn btn-sm btn-ghost" onclick="openStockModal('${s.id}')">✏️</button>
           <button class="btn btn-sm btn-ghost" onclick="eliminarStock('${s.id}')">🗑</button>
