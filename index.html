@@ -1284,15 +1284,71 @@ function eliminarStock(id) {
 
 let compraItems = []; // { id, nombre, cat, importancia, checked, cantidad }
 
-function ultimaCompra(stockId) {
-  // Returns the most recent compra record for this stockId, or null
+function historialItem(stockId) {
   return S.compras
     .filter(c => c.stockId === stockId)
-    .sort((a, b) => b.fecha.localeCompare(a.fecha))[0] || null;
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+}
+
+function ultimaCompra(stockId) {
+  return historialItem(stockId)[0] || null;
 }
 
 function diasDesde(fechaISO) {
   return Math.floor((Date.now() - new Date(fechaISO).getTime()) / 86400000);
+}
+
+// Devuelve un array de hints { texto, color, emoji } para un ítem del stock
+function sugerenciasCompra(stockId, modo='modal') {
+  const hist = historialItem(stockId);
+  if (!hist.length) return [];
+  const hints = [];
+  const ult = hist[0];
+  const dias = diasDesde(ult.fecha);
+  const cantTxt = ult.cantidad ? ` (compraste ${ult.cantidad})` : '';
+
+  // Siempre: última compra
+  const diasLabel = dias === 0 ? 'hoy' : `hace ${dias} día${dias !== 1 ? 's' : ''}`;
+  hints.push({ texto: `🛒 Última compra: ${diasLabel}${cantTxt}`, color: 'var(--cr-muted)', key: 'ultima' });
+
+  // Regla 1: comprado hace menos de 2 semanas → se acabó rápido, comprá más
+  if (dias < 14) {
+    const extra = ult.cantidad ? `, conviene comprar más que ${ult.cantidad}` : ', conviene comprar más que la última vez';
+    hints.push({ texto: `⚠️ Se acabó en menos de 2 semanas${extra}`, color: '#d97706', key: 'reciente' });
+  }
+
+  // Regla 2: ≥ 2 compras → frecuencia promedio
+  if (hist.length >= 2) {
+    const gaps = [];
+    for (let i = 0; i < hist.length - 1; i++) {
+      gaps.push(Math.round((new Date(hist[i].fecha) - new Date(hist[i+1].fecha)) / 86400000));
+    }
+    const avg = Math.round(gaps.reduce((a,b) => a+b, 0) / gaps.length);
+    if (avg > 0) {
+      const dueIn = avg - dias;
+      let freqTexto;
+      if (dueIn < 0) freqTexto = `📊 Lo comprás cada ~${avg} días — ya van ${dias} días, es hora`;
+      else if (dueIn <= 5) freqTexto = `📊 Lo comprás cada ~${avg} días — en ${dueIn} días lo vas a necesitar`;
+      else freqTexto = `📊 Lo comprás cada ~${avg} días`;
+      hints.push({ texto: freqTexto, color: dueIn < 0 ? '#2563eb' : 'var(--cr-muted)', key: 'frecuencia' });
+    }
+  }
+
+  // Regla 3: más de 3 meses sin comprar
+  if (dias > 90) {
+    hints.push({ texto: `⏳ No lo comprás hace más de 3 meses`, color: 'var(--cr-muted)', key: 'olvidado' });
+  }
+
+  // En modo tarjeta de stock mostramos solo la más relevante
+  if (modo === 'card') {
+    const prioridad = ['reciente', 'frecuencia', 'olvidado', 'ultima'];
+    for (const key of prioridad) {
+      const h = hints.find(h => h.key === key);
+      if (h) return [h];
+    }
+    return [];
+  }
+  return hints;
 }
 
 function openRegistrarCompra() {
@@ -1315,22 +1371,17 @@ function renderCompraItems() {
   document.getElementById('compra-items').innerHTML = compraItems.map((item, i) => {
     const s = s_map[item.id];
     const icon = s ? (estadoIcon[s.estado] || '🟡') : '🟡';
-    const ult = ultimaCompra(item.id);
-    let hint = '';
-    if (ult) {
-      const dias = diasDesde(ult.fecha);
-      const cantTxt = ult.cantidad ? ` · compraste ${ult.cantidad}` : '';
-      const color = dias <= 7 ? '#f59e0b' : 'var(--cr-muted)';
-      const warn = dias <= 7 ? '⚠️ ' : '';
-      hint = `<div style="font-size:11px;color:${color};margin-top:2px">${warn}Última compra: hace ${dias === 0 ? 'hoy' : dias + ' día' + (dias !== 1 ? 's' : '')}${cantTxt}</div>`;
-    }
+    const hints = sugerenciasCompra(item.id, 'modal');
+    const hintsHTML = hints.map(h =>
+      `<div style="font-size:11px;color:${h.color};margin-top:3px">${h.texto}</div>`
+    ).join('');
     return `<div style="padding:10px 12px;border-radius:8px;background:var(--cr-surface);border:1px solid var(--cr-border)">
       <div style="display:flex;align-items:center;gap:10px">
         <input type="checkbox" id="ci_${i}" ${item.checked ? 'checked' : ''} onchange="compraItems[${i}].checked=this.checked" style="width:18px;height:18px;cursor:pointer;flex-shrink:0">
         <label for="ci_${i}" style="flex:1;cursor:pointer">
           <span style="font-weight:600">${esc(item.nombre)}</span>
           ${item.cat ? `<span style="font-size:12px;color:var(--cr-muted);margin-left:6px">${esc(item.cat)}</span>` : ''}
-          ${hint}
+          ${hintsHTML}
         </label>
         <span style="font-size:13px">${icon}</span>
         <input type="number" min="0" step="any" placeholder="Cant." value="${item.cantidad}"
@@ -1414,14 +1465,10 @@ function renderStock() {
   grid.innerHTML=filtered.map(s=>{
     const estado=s.estado||'ok';
     const imp=s.importancia||'media';
-    const ult=ultimaCompra(s.id);
-    let ultTxt='';
-    if (ult) {
-      const dias=diasDesde(ult.fecha);
-      const cantTxt=ult.cantidad?` · ${ult.cantidad}`:'';
-      const warn=dias<=7?' ⚠️':'';
-      ultTxt=`<div style="font-size:11px;color:var(--cr-muted);margin-top:4px">🛒 ${dias===0?'Hoy':'Hace '+dias+'d'}${cantTxt}${warn}</div>`;
-    }
+    const hints=(estado==='bajo'||estado==='critico')?sugerenciasCompra(s.id,'card'):[];
+    const ultTxt=hints.length
+      ?`<div style="font-size:11px;color:${hints[0].color};margin-top:4px">${hints[0].texto}</div>`
+      :'';
     return `
       <div class="stock-item borde-${estado}">
         <div class="stock-nombre">${esc(s.nombre)}</div>
