@@ -237,6 +237,21 @@
 
   .text-muted { color: var(--cr-muted); font-size: 13px; }
 
+  /* PERSONAL PANEL */
+  .personal-item { display:flex; align-items:flex-start; gap:10px; padding:.75rem 0; border-bottom:.5px solid var(--cr-border); }
+  .personal-item:last-child { border-bottom:none; }
+  .personal-item-body { flex:1; min-width:0; }
+  .personal-item-nombre { font-weight:600; font-size:14px; }
+  .personal-item-sub { font-size:12px; color:var(--cr-muted); margin-top:2px; }
+  .personal-item-actions { display:flex; gap:4px; flex-shrink:0; }
+  .habito-bar { height:4px; background:var(--cr-border); border-radius:2px; margin-top:6px; overflow:hidden; }
+  .habito-bar-fill { height:100%; border-radius:2px; transition:width .4s; }
+  .turno-card { background:var(--cr-card); border:.5px solid var(--cr-border); border-radius:var(--radius); padding:1rem 1.25rem; margin-bottom:.75rem; }
+  .turno-asignado { background:#eef2ff; border-color:#c7d2fe; }
+  .turno-vencido { background:#fef2f2; border-color:#fecaca; }
+  .btn-gcal { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:white; border:1px solid #dadce0; border-radius:6px; font-size:12px; color:#3c4043; cursor:pointer; text-decoration:none; font-weight:500; }
+  .btn-gcal:hover { background:#f8f9fa; }
+
   .stock-search { position:relative; margin-bottom:.75rem; }
   .stock-search input { padding-left:2.2rem; }
   .stock-search-icon { position:absolute; left:.7rem; top:50%; transform:translateY(-50%); color:var(--cr-muted); font-size:14px; pointer-events:none; }
@@ -374,6 +389,8 @@
   <div class="tabs">
     <button class="tab active" onclick="switchTab('tareas',this)">🏠 Tareas</button>
     <button class="tab" onclick="switchTab('stock',this)">📦 Stock</button>
+    <button class="tab" onclick="switchTab('personal',this)">👤 Mi panel</button>
+    <button class="tab" onclick="switchTab('turnos',this)">🔄 Turnos</button>
     <button class="tab" onclick="switchTab('passwords',this)">🔑 Contraseñas</button>
     <button class="tab" onclick="switchTab('notas',this)">📝 Notas</button>
     <button class="tab" onclick="switchTab('votaciones',this)">🗳️ Votaciones</button>
@@ -428,6 +445,103 @@
     </div>
     <p class="text-muted" style="margin-bottom:1rem">Los suscriptores votan desde la Sala VIP. Todos pueden ver los resultados.</p>
     <div id="votaciones-priv"></div>
+  </div>
+
+  <!-- TAB: MI PANEL PERSONAL -->
+  <div id="tab-personal" class="tab-content">
+    <div class="section-header">
+      <h2 id="personal-titulo">👤 Mi panel</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-ghost" onclick="openPersonalModal('recordatorio')">📅 Recordatorio</button>
+        <button class="btn btn-sm btn-ghost" onclick="openPersonalModal('tarea')">☑ Tarea</button>
+        <button class="btn btn-sm btn-ghost" onclick="openPersonalModal('habito')">🔁 Hábito</button>
+      </div>
+    </div>
+
+    <!-- Recordatorios -->
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-title">📅 Próximos recordatorios</div>
+      <div id="personal-recordatorios"></div>
+    </div>
+
+    <!-- Lista personal -->
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-title">☑ Mi lista</div>
+      <div id="personal-tareas"></div>
+    </div>
+
+    <!-- Hábitos -->
+    <div class="card" style="margin-bottom:.75rem">
+      <div class="card-title">🔁 Mis hábitos</div>
+      <div id="personal-habitos"></div>
+    </div>
+
+    <!-- Turnos asignados a este usuario -->
+    <div class="card" id="personal-turnos-card">
+      <div class="card-title">🔄 Mis turnos</div>
+      <div id="personal-turnos"></div>
+    </div>
+  </div>
+
+  <!-- TAB: TURNOS ROTATIVOS -->
+  <div id="tab-turnos" class="tab-content">
+    <div class="section-header">
+      <h2>🔄 Turnos rotativos</h2>
+      <button class="btn btn-primary btn-sm" onclick="openTurnoModal()">+ Nuevo turno</button>
+    </div>
+    <p class="text-muted" style="margin-bottom:1rem">Tareas que rotan entre los integrantes de la familia automáticamente.</p>
+    <div id="turnos-list"></div>
+  </div>
+</div>
+
+<!-- PERSONAL ITEM MODAL -->
+<div class="modal-overlay" id="personal-modal">
+  <div class="modal" style="max-width:460px">
+    <h3 id="personal-modal-title">Nuevo recordatorio</h3>
+    <div class="form-group"><label>Título</label><input type="text" id="p-nombre" placeholder="Ej: Turno médico, Llamar a..."></div>
+    <!-- fecha/hora: recordatorios -->
+    <div id="p-fecha-row" class="form-row">
+      <div class="form-group"><label>Fecha</label><input type="date" id="p-fecha"></div>
+      <div class="form-group"><label>Hora (opcional)</label><input type="time" id="p-hora"></div>
+    </div>
+    <!-- frecuencia: hábitos -->
+    <div id="p-freq-row" class="form-group" style="display:none">
+      <label>Repetir cada (días)</label>
+      <input type="number" id="p-frecuencia" min="1" value="7" placeholder="Ej: 7">
+    </div>
+    <div class="form-group"><label>Descripción (opcional)</label><input type="text" id="p-descripcion" placeholder="Notas adicionales..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('personal-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarPersonal()">Guardar</button>
+    </div>
+    <input type="hidden" id="p-tipo">
+    <input type="hidden" id="p-edit-id">
+  </div>
+</div>
+
+<!-- TURNO MODAL -->
+<div class="modal-overlay" id="turno-modal">
+  <div class="modal" style="max-width:460px">
+    <h3 id="turno-modal-title">Nuevo turno</h3>
+    <div class="form-group"><label>Nombre de la tarea</label><input type="text" id="t-nombre" placeholder="Ej: Limpiar baño, Cocinar, Hacer las compras..."></div>
+    <div class="form-row">
+      <div class="form-group"><label>Frecuencia (días)</label><input type="number" id="t-frecuencia" min="1" value="7" placeholder="7"></div>
+      <div class="form-group"><label>Descripción (opcional)</label><input type="text" id="t-descripcion" placeholder="Detalles..."></div>
+    </div>
+    <div class="form-group">
+      <label>Participantes (en orden de turno)</label>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px" id="t-participantes">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;color:var(--cr-text)"><input type="checkbox" value="feche" checked style="width:16px;height:16px"> Feche</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;color:var(--cr-text)"><input type="checkbox" value="rodri" checked style="width:16px;height:16px"> Rodri</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;color:var(--cr-text)"><input type="checkbox" value="nehue" checked style="width:16px;height:16px"> Nehue</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;color:var(--cr-text)"><input type="checkbox" value="civo" checked style="width:16px;height:16px"> Civo</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('turno-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarTurno()">Guardar</button>
+    </div>
+    <input type="hidden" id="t-edit-id">
   </div>
 </div>
 
@@ -771,7 +885,7 @@ const _SB = supabase.createClient(
 );
 
 // ── ESTADO EN MEMORIA ─────────────────────────────────────────
-const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[], comentarios:[], compras:[] };
+const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[], comentarios:[], compras:[], personal:[], turnos:[] };
 
 async function dbLoad(table) {
   const { data, error } = await _SB.from(table).select('data').order('created_at', { ascending: true });
@@ -795,9 +909,10 @@ async function loadAll() {
   const ld = document.getElementById('loading');
   ld.style.display = 'flex';
   try {
-    const [news, tareas, stock, passwords, notas, subs, vots, cmts, compras] = await Promise.all([
+    const [news, tareas, stock, passwords, notas, subs, vots, cmts, compras, personal, turnos] = await Promise.all([
       dbLoad('news'), dbLoad('tareas'), dbLoad('stock'),
-      dbLoad('passwords'), dbLoad('notas'), dbLoad('suscriptores'), dbLoad('votaciones'), dbLoad('comentarios'), dbLoad('compras')
+      dbLoad('passwords'), dbLoad('notas'), dbLoad('suscriptores'), dbLoad('votaciones'), dbLoad('comentarios'), dbLoad('compras'),
+      dbLoad('personal'), dbLoad('turnos')
     ]);
     S.news = news.reverse();
     S.tareas = tareas;
@@ -808,6 +923,8 @@ async function loadAll() {
     S.votaciones = vots.reverse();
     S.comentarios = cmts;
     S.compras = compras;
+    S.personal = personal;
+    S.turnos = turnos;
   } catch(e) {
     console.error('loadAll', e);
     toast('Error conectando a Supabase');
@@ -2083,7 +2200,355 @@ function marcarVisto() {
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtDate(iso) { if(!iso) return ''; return new Date(iso).toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'}); }
 function fmtDateShort(d) { if(!d) return ''; return new Date(d+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'}); }
-function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); renderVotacionesPriv(); updateNotifBadge(); }
+function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); renderVotacionesPriv(); renderPersonal(); renderTurnos(); updateNotifBadge(); }
+
+// ── GOOGLE CALENDAR ────────────────────────────────────────────
+function gcalUrl(titulo, fecha, hora='', descripcion='') {
+  const base = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
+  let dates;
+  if (hora) {
+    const [h, m] = hora.split(':');
+    const start = fecha.replace(/-/g,'') + 'T' + h + m + '00';
+    const endH = String((parseInt(h) + 1) % 24).padStart(2,'0');
+    const end   = fecha.replace(/-/g,'') + 'T' + endH + m + '00';
+    dates = `${start}/${end}`;
+  } else {
+    const next = new Date(fecha + 'T12:00:00');
+    next.setDate(next.getDate() + 1);
+    const nextStr = next.toISOString().slice(0,10).replace(/-/g,'');
+    dates = `${fecha.replace(/-/g,'')}/${nextStr}`;
+  }
+  return `${base}&text=${encodeURIComponent(titulo)}&dates=${dates}&details=${encodeURIComponent(descripcion)}`;
+}
+
+function gcalBtn(titulo, fecha, hora='', descripcion='') {
+  return `<a href="${gcalUrl(titulo,fecha,hora,descripcion)}" target="_blank" class="btn-gcal" title="Agregar a Google Calendar">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    GCal
+  </a>`;
+}
+
+// ── PANEL PERSONAL ─────────────────────────────────────────────
+function openPersonalModal(tipo, id=null) {
+  document.getElementById('p-tipo').value = tipo;
+  document.getElementById('p-edit-id').value = id || '';
+  const titles = { recordatorio:'Nuevo recordatorio', tarea:'Nueva tarea personal', habito:'Nuevo hábito' };
+  document.getElementById('personal-modal-title').textContent = id
+    ? 'Editar ' + tipo
+    : titles[tipo];
+  // show/hide rows
+  document.getElementById('p-fecha-row').style.display = tipo === 'recordatorio' ? '' : 'none';
+  document.getElementById('p-freq-row').style.display  = tipo === 'habito' ? '' : 'none';
+  // clear
+  ['p-nombre','p-descripcion','p-hora'].forEach(i => { const el=document.getElementById(i); if(el) el.value=''; });
+  document.getElementById('p-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('p-frecuencia').value = '7';
+  if (id) {
+    const item = S.personal.find(p => p.id === id); if (!item) return;
+    document.getElementById('p-nombre').value = item.nombre;
+    document.getElementById('p-descripcion').value = item.descripcion || '';
+    if (tipo === 'recordatorio') {
+      document.getElementById('p-fecha').value = item.fecha || '';
+      document.getElementById('p-hora').value  = item.hora  || '';
+    }
+    if (tipo === 'habito') document.getElementById('p-frecuencia').value = item.frecuencia || 7;
+  }
+  document.getElementById('personal-modal').classList.add('open');
+}
+
+async function guardarPersonal() {
+  const tipo   = document.getElementById('p-tipo').value;
+  const nombre = document.getElementById('p-nombre').value.trim();
+  if (!nombre) { toast('Ingresá un título'); return; }
+  const editId = document.getElementById('p-edit-id').value;
+  const base   = { id: editId||uid(), usuario: currentUser, tipo, nombre,
+                   descripcion: document.getElementById('p-descripcion').value.trim() };
+  if (tipo === 'recordatorio') {
+    const fecha = document.getElementById('p-fecha').value;
+    if (!fecha) { toast('Ingresá una fecha'); return; }
+    Object.assign(base, { fecha, hora: document.getElementById('p-hora').value, hecho: false });
+  } else if (tipo === 'tarea') {
+    Object.assign(base, { hecho: false });
+  } else if (tipo === 'habito') {
+    const frec = parseInt(document.getElementById('p-frecuencia').value) || 7;
+    const prev = editId ? S.personal.find(p=>p.id===editId) : null;
+    Object.assign(base, { frecuencia: frec, ultimaVez: prev?.ultimaVez || null });
+  }
+  try {
+    if (editId) {
+      await dbUpdate('personal', base);
+      const i = S.personal.findIndex(p=>p.id===editId); if(i!==-1) S.personal[i]=base;
+    } else {
+      await dbInsert('personal', base);
+      S.personal.push(base);
+    }
+    closeModal('personal-modal'); renderPersonal(); toast(editId?'Actualizado':'¡Guardado!');
+  } catch(e) { toast('Error al guardar'); }
+}
+
+async function togglePersonalHecho(id) {
+  const item = S.personal.find(p=>p.id===id); if(!item) return;
+  item.hecho = !item.hecho;
+  try { await dbUpdate('personal', item); renderPersonal(); } catch(e) { toast('Error'); }
+}
+
+async function marcarHabitoHecho(id) {
+  const item = S.personal.find(p=>p.id===id); if(!item) return;
+  item.ultimaVez = new Date().toISOString();
+  try { await dbUpdate('personal', item); renderPersonal(); toast('¡Hábito marcado!'); } catch(e) { toast('Error'); }
+}
+
+async function eliminarPersonal(id) {
+  confirmDlg('¿Eliminar este ítem?', async () => {
+    try {
+      await dbDelete('personal', id);
+      S.personal = S.personal.filter(p=>p.id!==id); renderPersonal(); toast('Eliminado');
+    } catch(e) { toast('Error'); }
+  });
+}
+
+function renderPersonal() {
+  if (!currentUser) return;
+  const USERS_LABEL = { feche:'Feche', rodri:'Rodri', nehue:'Nehue', civo:'Civo' };
+  document.getElementById('personal-titulo').textContent =
+    `👤 Mi panel — ${USERS_LABEL[currentUser]||currentUser}`;
+  const mine = S.personal.filter(p => p.usuario === currentUser);
+  const today = new Date().toISOString().slice(0,10);
+
+  // ── Recordatorios ──
+  const recEl = document.getElementById('personal-recordatorios');
+  const recs = mine.filter(p=>p.tipo==='recordatorio' && !p.hecho)
+    .sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  if (!recs.length) {
+    recEl.innerHTML = '<p class="text-muted" style="padding:.5rem 0">Sin recordatorios próximos.</p>';
+  } else {
+    recEl.innerHTML = recs.map(r => {
+      const dias = Math.ceil((new Date(r.fecha) - new Date(today)) / 86400000);
+      const dLabel = dias < 0 ? `Hace ${-dias}d` : dias === 0 ? 'Hoy' : dias === 1 ? 'Mañana' : `En ${dias} días`;
+      const color  = dias < 0 ? 'var(--cr-danger)' : dias <= 1 ? 'var(--cr-warning)' : 'var(--cr-muted)';
+      const horaStr = r.hora ? ` a las ${r.hora}` : '';
+      return `<div class="personal-item">
+        <div class="personal-item-body">
+          <div class="personal-item-nombre">${esc(r.nombre)}</div>
+          <div class="personal-item-sub" style="color:${color}">${dLabel}${horaStr}${r.descripcion?' · '+esc(r.descripcion):''}</div>
+        </div>
+        <div class="personal-item-actions">
+          ${gcalBtn(r.nombre, r.fecha, r.hora||'', r.descripcion||'')}
+          <button class="btn-icon" onclick="togglePersonalHecho('${r.id}')" title="Marcar hecho">✓</button>
+          <button class="btn-icon" onclick="openPersonalModal('recordatorio','${r.id}')" title="Editar">✏️</button>
+          <button class="btn-icon" onclick="eliminarPersonal('${r.id}')">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Lista personal ──
+  const tarEl = document.getElementById('personal-tareas');
+  const tareas = mine.filter(p=>p.tipo==='tarea').sort((a,b)=>a.hecho-b.hecho);
+  if (!tareas.length) {
+    tarEl.innerHTML = '<p class="text-muted" style="padding:.5rem 0">Tu lista está vacía.</p>';
+  } else {
+    tarEl.innerHTML = tareas.map(t => `
+      <div class="personal-item">
+        <input type="checkbox" ${t.hecho?'checked':''} onchange="togglePersonalHecho('${t.id}')"
+          style="width:17px;height:17px;flex-shrink:0;cursor:pointer;margin-top:2px">
+        <div class="personal-item-body" style="${t.hecho?'opacity:.5;text-decoration:line-through':''}">
+          <div class="personal-item-nombre">${esc(t.nombre)}</div>
+          ${t.descripcion?`<div class="personal-item-sub">${esc(t.descripcion)}</div>`:''}
+        </div>
+        <div class="personal-item-actions">
+          <button class="btn-icon" onclick="openPersonalModal('tarea','${t.id}')">✏️</button>
+          <button class="btn-icon" onclick="eliminarPersonal('${t.id}')">🗑</button>
+        </div>
+      </div>`).join('');
+  }
+
+  // ── Hábitos ──
+  const habEl = document.getElementById('personal-habitos');
+  const habitos = mine.filter(p=>p.tipo==='habito');
+  if (!habitos.length) {
+    habEl.innerHTML = '<p class="text-muted" style="padding:.5rem 0">No tenés hábitos registrados.</p>';
+  } else {
+    habEl.innerHTML = habitos.map(h => {
+      const diasDesdeUlt = h.ultimaVez ? diasDesde(h.ultimaVez) : null;
+      const pct = diasDesdeUlt !== null ? Math.min(100, Math.round(diasDesdeUlt / h.frecuencia * 100)) : 0;
+      const vencido = diasDesdeUlt !== null && diasDesdeUlt >= h.frecuencia;
+      const barColor = vencido ? 'var(--cr-danger)' : pct > 70 ? 'var(--cr-warning)' : 'var(--cr-success)';
+      let statusTxt, statusColor;
+      if (diasDesdeUlt === null) {
+        statusTxt = 'Nunca registrado — ¡empezá hoy!'; statusColor = 'var(--cr-muted)';
+      } else if (vencido) {
+        statusTxt = `Atrasado ${diasDesdeUlt - h.frecuencia}d — tocaba hace ${diasDesdeUlt - h.frecuencia} día${diasDesdeUlt-h.frecuencia!==1?'s':''}`;
+        statusColor = 'var(--cr-danger)';
+      } else {
+        const falta = h.frecuencia - diasDesdeUlt;
+        statusTxt = `Última vez: hace ${diasDesdeUlt}d · faltan ${falta} día${falta!==1?'s':''}`;
+        statusColor = 'var(--cr-muted)';
+      }
+      // próxima fecha para GCal
+      const proxFecha = h.ultimaVez
+        ? new Date(new Date(h.ultimaVez).getTime() + h.frecuencia * 86400000).toISOString().slice(0,10)
+        : today;
+      return `<div class="personal-item" style="flex-direction:column;align-items:stretch;gap:6px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="personal-item-body">
+            <div class="personal-item-nombre">${esc(h.nombre)} <span style="font-size:12px;font-weight:400;color:var(--cr-muted)">cada ${h.frecuencia}d</span></div>
+            <div class="personal-item-sub" style="color:${statusColor}">${statusTxt}</div>
+            <div class="habito-bar"><div class="habito-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+          </div>
+          <div class="personal-item-actions" style="flex-direction:column">
+            <button class="btn btn-sm btn-success" onclick="marcarHabitoHecho('${h.id}')" style="font-size:11px;padding:4px 8px">✓ Hecho</button>
+            ${gcalBtn(h.nombre + ' (recordatorio)', proxFecha, '', h.descripcion||'')}
+            <button class="btn-icon" onclick="openPersonalModal('habito','${h.id}')">✏️</button>
+            <button class="btn-icon" onclick="eliminarPersonal('${h.id}')">🗑</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Turnos asignados a este usuario ──
+  const turnosEl = document.getElementById('personal-turnos');
+  const misTurnos = S.turnos.filter(t => {
+    const p = t.participantes || [];
+    return p.includes(currentUser) && turnoActual(t) === currentUser;
+  });
+  if (!misTurnos.length) {
+    turnosEl.innerHTML = '<p class="text-muted" style="padding:.5rem 0">No tenés turnos asignados ahora.</p>';
+  } else {
+    turnosEl.innerHTML = misTurnos.map(t => {
+      const diasUlt = t.ultimaFecha ? diasDesde(t.ultimaFecha) : null;
+      const venc = diasUlt !== null && diasUlt >= t.frecuencia;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:.5rem 0;border-bottom:.5px solid var(--cr-border)">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">🔄 ${esc(t.nombre)}</div>
+          <div style="font-size:12px;color:${venc?'var(--cr-danger)':'var(--cr-muted)'}">
+            ${diasUlt===null?'Primera vez':'Última vez hace '+diasUlt+'d'} · cada ${t.frecuencia}d
+            ${venc?' — ¡ya era hora!':''}
+          </div>
+        </div>
+        ${gcalBtn('Turno: '+t.nombre, today, '', t.descripcion||'')}
+        <button class="btn btn-sm btn-success" onclick="marcarTurnoDone('${t.id}')" style="font-size:11px">✓ Hecho</button>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ── TURNOS ROTATIVOS ───────────────────────────────────────────
+const USERS_NOMBRE = { feche:'Feche', rodri:'Rodri', nehue:'Nehue', civo:'Civo' };
+
+function turnoActual(t) {
+  if (!t.participantes?.length) return null;
+  return t.participantes[t.turnoIdx % t.participantes.length];
+}
+
+function openTurnoModal(id=null) {
+  document.getElementById('t-edit-id').value = id||'';
+  document.getElementById('turno-modal-title').textContent = id ? 'Editar turno' : 'Nuevo turno';
+  document.getElementById('t-nombre').value = '';
+  document.getElementById('t-descripcion').value = '';
+  document.getElementById('t-frecuencia').value = '7';
+  // reset checkboxes
+  document.querySelectorAll('#t-participantes input[type=checkbox]').forEach(cb => cb.checked = true);
+  if (id) {
+    const t = S.turnos.find(t=>t.id===id); if(!t) return;
+    document.getElementById('t-nombre').value = t.nombre;
+    document.getElementById('t-descripcion').value = t.descripcion||'';
+    document.getElementById('t-frecuencia').value = t.frecuencia||7;
+    document.querySelectorAll('#t-participantes input[type=checkbox]').forEach(cb => {
+      cb.checked = (t.participantes||[]).includes(cb.value);
+    });
+  }
+  document.getElementById('turno-modal').classList.add('open');
+}
+
+async function guardarTurno() {
+  const nombre = document.getElementById('t-nombre').value.trim();
+  if (!nombre) { toast('Ingresá el nombre'); return; }
+  const participantes = [...document.querySelectorAll('#t-participantes input:checked')].map(c=>c.value);
+  if (!participantes.length) { toast('Seleccioná al menos un participante'); return; }
+  const editId = document.getElementById('t-edit-id').value;
+  const prev = editId ? S.turnos.find(t=>t.id===editId) : null;
+  const obj = {
+    id: editId||uid(), nombre,
+    descripcion: document.getElementById('t-descripcion').value.trim(),
+    frecuencia: parseInt(document.getElementById('t-frecuencia').value)||7,
+    participantes, turnoIdx: prev?.turnoIdx||0, ultimaFecha: prev?.ultimaFecha||null,
+  };
+  try {
+    if (editId) {
+      await dbUpdate('turnos', obj);
+      const i = S.turnos.findIndex(t=>t.id===editId); if(i!==-1) S.turnos[i]=obj;
+    } else {
+      await dbInsert('turnos', obj);
+      S.turnos.push(obj);
+    }
+    closeModal('turno-modal'); renderTurnos(); renderPersonal(); toast(editId?'Actualizado':'¡Turno creado!');
+  } catch(e) { toast('Error al guardar'); }
+}
+
+async function marcarTurnoDone(id) {
+  const t = S.turnos.find(t=>t.id===id); if(!t) return;
+  const quien = turnoActual(t);
+  t.ultimaFecha = new Date().toISOString();
+  t.turnoIdx = (t.turnoIdx||0) + 1;
+  try {
+    await dbUpdate('turnos', t);
+    renderTurnos(); renderPersonal();
+    const next = turnoActual(t);
+    toast(`✓ Listo — ahora le toca a ${USERS_NOMBRE[next]||next}`);
+  } catch(e) { toast('Error'); }
+}
+
+async function eliminarTurno(id) {
+  confirmDlg('¿Eliminar este turno?', async () => {
+    try {
+      await dbDelete('turnos', id);
+      S.turnos = S.turnos.filter(t=>t.id!==id); renderTurnos(); renderPersonal(); toast('Turno eliminado');
+    } catch(e) { toast('Error'); }
+  });
+}
+
+function renderTurnos() {
+  const el = document.getElementById('turnos-list'); if(!el) return;
+  if (!S.turnos.length) {
+    el.innerHTML = '<div class="empty-state"><div class="ei">🔄</div><p>No hay turnos creados. Creá uno para empezar a rotar tareas.</p></div>';
+    return;
+  }
+  const today = new Date().toISOString().slice(0,10);
+  el.innerHTML = S.turnos.map(t => {
+    const actual = turnoActual(t);
+    const diasUlt = t.ultimaFecha ? diasDesde(t.ultimaFecha) : null;
+    const vencido = diasUlt !== null && diasUlt >= t.frecuencia;
+    const cls = actual === currentUser ? 'turno-card turno-asignado' : vencido ? 'turno-card turno-vencido' : 'turno-card';
+    // avatar row
+    const avatarRow = (t.participantes||[]).map((u,i) => {
+      const isNow = i === (t.turnoIdx||0) % t.participantes.length;
+      return `<span style="display:inline-flex;align-items:center;gap:3px;${isNow?'font-weight:700;color:var(--cr-blue)':'opacity:.5'}">
+        ${avatar(u,22)}<span style="font-size:12px">${USERS_NOMBRE[u]||u}</span>${i<t.participantes.length-1?'<span style="color:var(--cr-muted);margin:0 2px">→</span>':''}
+      </span>`;
+    }).join('');
+    return `<div class="${cls}">
+      <div style="display:flex;align-items:start;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:600;font-size:15px;margin-bottom:4px">${esc(t.nombre)}</div>
+          ${t.descripcion?`<div style="font-size:13px;color:var(--cr-muted);margin-bottom:6px">${esc(t.descripcion)}</div>`:''}
+          <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:8px">${avatarRow}</div>
+          <div style="font-size:12px;color:${vencido?'var(--cr-danger)':'var(--cr-muted)'}">
+            Cada ${t.frecuencia} días · ${diasUlt===null?'Nunca hecho':'Última vez hace '+diasUlt+'d'}${vencido?' — ¡vencido!':''}
+            · <strong>Le toca a ${USERS_NOMBRE[actual]||actual}</strong>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          ${gcalBtn('Turno: '+t.nombre, today, '', t.descripcion||'')}
+          <button class="btn btn-sm btn-success" onclick="marcarTurnoDone('${t.id}')">✓ Hecho</button>
+          <button class="btn btn-sm btn-ghost" onclick="openTurnoModal('${t.id}')">✏️</button>
+          <button class="btn btn-sm btn-ghost" onclick="eliminarTurno('${t.id}')">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 (async function init() {
   currentUser=DB.get('current_user')||null;
