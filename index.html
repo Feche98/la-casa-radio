@@ -252,6 +252,25 @@
   .btn-gcal { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:white; border:1px solid #dadce0; border-radius:6px; font-size:12px; color:#3c4043; cursor:pointer; text-decoration:none; font-weight:500; }
   .btn-gcal:hover { background:#f8f9fa; }
 
+  /* GASTOS */
+  .balance-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-bottom:.5rem; }
+  .balance-card { background:var(--cr-card); border:.5px solid var(--cr-border); border-radius:var(--radius); padding:1rem; }
+  .balance-card.balance-pos { border-color:#86efac; background:#f0fdf4; }
+  .balance-card.balance-neg { border-color:#fca5a5; background:#fef2f2; }
+  .balance-card.balance-zero { opacity:.6; }
+  .balance-nombre { font-weight:600; font-size:14px; margin-bottom:4px; }
+  .balance-monto { font-size:1.3rem; font-weight:700; }
+  .balance-monto.pos { color:var(--cr-success); }
+  .balance-monto.neg { color:var(--cr-danger); }
+  .deuda-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:.6rem 1rem; background:#fef9ec; border:.5px solid #fde68a; border-radius:8px; margin-bottom:.5rem; font-size:14px; }
+  .gasto-item { display:flex; align-items:flex-start; gap:12px; padding:.85rem 0; border-bottom:.5px solid var(--cr-border); }
+  .gasto-item:last-child { border-bottom:none; }
+  .gasto-icono { width:36px; height:36px; border-radius:8px; background:var(--cr-blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .gasto-body { flex:1; min-width:0; }
+  .gasto-titulo { font-weight:600; font-size:14px; }
+  .gasto-sub { font-size:12px; color:var(--cr-muted); margin-top:2px; }
+  .gasto-monto { font-weight:700; font-size:15px; color:var(--cr-blue); flex-shrink:0; }
+
   .stock-search { position:relative; margin-bottom:.75rem; }
   .stock-search input { padding-left:2.2rem; }
   .stock-search-icon { position:absolute; left:.7rem; top:50%; transform:translateY(-50%); color:var(--cr-muted); font-size:14px; pointer-events:none; }
@@ -391,6 +410,7 @@
     <button class="tab" onclick="switchTab('stock',this)">📦 Stock</button>
     <button class="tab" onclick="switchTab('personal',this)">👤 Mi panel</button>
     <button class="tab" onclick="switchTab('turnos',this)">🔄 Turnos</button>
+    <button class="tab" onclick="switchTab('gastos',this)">💸 Gastos</button>
     <button class="tab" onclick="switchTab('passwords',this)">🔑 Contraseñas</button>
     <button class="tab" onclick="switchTab('notas',this)">📝 Notas</button>
     <button class="tab" onclick="switchTab('votaciones',this)">🗳️ Votaciones</button>
@@ -483,6 +503,24 @@
     </div>
   </div>
 
+  <!-- TAB: GASTOS COMPARTIDOS -->
+  <div id="tab-gastos" class="tab-content">
+    <div class="section-header">
+      <h2>💸 Gastos compartidos</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-ghost" onclick="openSaldarModal()">💳 Saldar deuda</button>
+        <button class="btn btn-primary btn-sm" onclick="openGastoModal()">+ Nuevo gasto</button>
+      </div>
+    </div>
+    <!-- Balance summary -->
+    <div id="gastos-balance"></div>
+    <!-- Gastos list -->
+    <div class="card" style="margin-top:.75rem">
+      <div class="card-title">Historial de gastos</div>
+      <div id="gastos-list"></div>
+    </div>
+  </div>
+
   <!-- TAB: TURNOS ROTATIVOS -->
   <div id="tab-turnos" class="tab-content">
     <div class="section-header">
@@ -491,6 +529,94 @@
     </div>
     <p class="text-muted" style="margin-bottom:1rem">Tareas que rotan entre los integrantes de la familia automáticamente.</p>
     <div id="turnos-list"></div>
+  </div>
+</div>
+
+<!-- GASTO MODAL -->
+<div class="modal-overlay" id="gasto-modal">
+  <div class="modal" style="max-width:500px">
+    <h3 id="gasto-modal-title">Nuevo gasto</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Título</label><input type="text" id="g-titulo" placeholder="Ej: Super, Luz, Pizza..."></div>
+      <div class="form-group"><label>Monto ($)</label><input type="number" id="g-monto" min="0" step="0.01" placeholder="0.00"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>¿Quién pagó?</label>
+        <select id="g-pagador">
+          <option value="feche">Feche</option>
+          <option value="rodri">Rodri</option>
+          <option value="nehue">Nehue</option>
+          <option value="civo">Civo</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Fecha</label><input type="date" id="g-fecha"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Categoría</label>
+        <input type="text" id="g-categoria" placeholder="Ej: Comida, Limpieza..." list="g-cats-list">
+        <datalist id="g-cats-list">
+          <option value="Comida">
+          <option value="Supermercado">
+          <option value="Limpieza">
+          <option value="Servicios">
+          <option value="Salidas">
+          <option value="Transporte">
+          <option value="Otros">
+        </datalist>
+      </div>
+      <div class="form-group"><label>Descripción (opcional)</label><input type="text" id="g-descripcion" placeholder="Detalles..."></div>
+    </div>
+    <div class="form-group">
+      <label>¿Quiénes participan?</label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px" id="g-participantes">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:normal;color:var(--cr-text);cursor:pointer"><input type="checkbox" value="feche" checked style="width:16px;height:16px"> Feche</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:normal;color:var(--cr-text);cursor:pointer"><input type="checkbox" value="rodri" checked style="width:16px;height:16px"> Rodri</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:normal;color:var(--cr-text);cursor:pointer"><input type="checkbox" value="nehue" checked style="width:16px;height:16px"> Nehue</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:normal;color:var(--cr-text);cursor:pointer"><input type="checkbox" value="civo" checked style="width:16px;height:16px"> Civo</label>
+      </div>
+    </div>
+    <div class="form-group" id="g-division-row">
+      <label>División</label>
+      <div style="display:flex;gap:12px;margin:4px 0 8px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;color:var(--cr-text)"><input type="radio" name="g-div" value="igual" checked onchange="toggleDivision(this.value)"> Partes iguales</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;color:var(--cr-text)"><input type="radio" name="g-div" value="pct" onchange="toggleDivision(this.value)"> Porcentajes</label>
+      </div>
+      <div id="g-pct-inputs" style="display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('gasto-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarGasto()">Guardar</button>
+    </div>
+    <input type="hidden" id="g-edit-id">
+  </div>
+</div>
+
+<!-- SALDAR MODAL -->
+<div class="modal-overlay" id="saldar-modal">
+  <div class="modal" style="max-width:380px">
+    <h3>💳 Saldar deuda</h3>
+    <div class="form-group">
+      <label>¿Quién paga?</label>
+      <select id="s-de">
+        <option value="feche">Feche</option><option value="rodri">Rodri</option>
+        <option value="nehue">Nehue</option><option value="civo">Civo</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>¿A quién le paga?</label>
+      <select id="s-para">
+        <option value="feche">Feche</option><option value="rodri">Rodri</option>
+        <option value="nehue">Nehue</option><option value="civo">Civo</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Monto ($)</label><input type="number" id="s-monto" min="0" step="0.01" placeholder="0.00"></div>
+    <div class="form-group"><label>Descripción (opcional)</label><input type="text" id="s-descripcion" placeholder="Ej: Te transfiero lo del super"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('saldar-modal')">Cancelar</button>
+      <button class="btn btn-success btn-sm" onclick="confirmarSaldar()">Registrar pago</button>
+    </div>
   </div>
 </div>
 
@@ -885,7 +1011,7 @@ const _SB = supabase.createClient(
 );
 
 // ── ESTADO EN MEMORIA ─────────────────────────────────────────
-const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[], comentarios:[], compras:[], personal:[], turnos:[] };
+const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[], comentarios:[], compras:[], personal:[], turnos:[], gastos:[] };
 
 async function dbLoad(table) {
   const { data, error } = await _SB.from(table).select('data').order('created_at', { ascending: true });
@@ -909,10 +1035,10 @@ async function loadAll() {
   const ld = document.getElementById('loading');
   ld.style.display = 'flex';
   try {
-    const [news, tareas, stock, passwords, notas, subs, vots, cmts, compras, personal, turnos] = await Promise.all([
+    const [news, tareas, stock, passwords, notas, subs, vots, cmts, compras, personal, turnos, gastos] = await Promise.all([
       dbLoad('news'), dbLoad('tareas'), dbLoad('stock'),
       dbLoad('passwords'), dbLoad('notas'), dbLoad('suscriptores'), dbLoad('votaciones'), dbLoad('comentarios'), dbLoad('compras'),
-      dbLoad('personal'), dbLoad('turnos')
+      dbLoad('personal'), dbLoad('turnos'), dbLoad('gastos')
     ]);
     S.news = news.reverse();
     S.tareas = tareas;
@@ -925,6 +1051,7 @@ async function loadAll() {
     S.compras = compras;
     S.personal = personal;
     S.turnos = turnos;
+    S.gastos = gastos.reverse();
   } catch(e) {
     console.error('loadAll', e);
     toast('Error conectando a Supabase');
@@ -2076,7 +2203,7 @@ async function agregarComentario(newsId) {
 
 // ── NOTIFICACIONES ────────────────────────────────────────────
 function getAlerts() {
-  const alerts = { stock:[], tareas:[], subs:[], vencidos:[] };
+  const alerts = { stock:[], tareas:[], subs:[], vencidos:[], deudas:[] };
   const today = new Date().toISOString().slice(0,10);
 
   // Stock bajo / crítico
@@ -2103,11 +2230,17 @@ function getAlerts() {
   const lastSeen = DB.get('notif_seen_' + currentUser) || '1970-01-01T00:00:00.000Z';
   S.suscriptores.filter(s => s.fecha > lastSeen).forEach(s => alerts.subs.push({ email: s.email, fecha: s.fecha }));
 
+  // Deudas con gastos de más de 2 semanas
+  const _deudas = deudaSimplificada(calcularBalances());
+  if (_deudas.length && S.gastos.some(g => g.tipo==='gasto' && diasDesde(g.fecha) > 14)) {
+    alerts.deudas = _deudas;
+  }
+
   return alerts;
 }
 
 function alertCount(alerts) {
-  return alerts.stock.length + alerts.tareas.length + alerts.subs.length + (alerts.vencidos||[]).length;
+  return alerts.stock.length + alerts.tareas.length + alerts.subs.length + (alerts.vencidos||[]).length + (alerts.deudas||[]).length;
 }
 
 function updateNotifBadge() {
@@ -2148,6 +2281,13 @@ function openNotificaciones() {
     parts.push(`<div class="notif-section">
       <div class="notif-section-title">🥬 Perecederos — posiblemente vencidos</div>
       ${alerts.vencidos.map(v => `<div class="notif-item"><div class="notif-icon">⚠️</div><div class="notif-text"><div class="notif-title">${esc(v.nombre)}</div><div class="notif-sub">Comprado hace ${v.dias} días — puede estar vencido</div></div></div>`).join('')}
+    </div>`);
+  }
+
+  if (alerts.deudas && alerts.deudas.length) {
+    parts.push(`<div class="notif-section">
+      <div class="notif-section-title">💸 Deudas pendientes (+2 semanas)</div>
+      ${alerts.deudas.map(d=>`<div class="notif-item"><div class="notif-icon">💳</div><div class="notif-text"><div class="notif-title">${esc(GUSERS[d.de]||d.de)} debe $${d.monto.toFixed(2)}</div><div class="notif-sub">A ${esc(GUSERS[d.para]||d.para)} — hace más de 2 semanas</div></div></div>`).join('')}
     </div>`);
   }
 
@@ -2200,7 +2340,227 @@ function marcarVisto() {
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtDate(iso) { if(!iso) return ''; return new Date(iso).toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'}); }
 function fmtDateShort(d) { if(!d) return ''; return new Date(d+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'}); }
-function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); renderVotacionesPriv(); renderPersonal(); renderTurnos(); updateNotifBadge(); }
+// ── GASTOS COMPARTIDOS ─────────────────────────────────────────
+const GUSERS = { feche:'Feche', rodri:'Rodri', nehue:'Nehue', civo:'Civo' };
+const CAT_EMOJI = { Comida:'🍕', Supermercado:'🛒', Limpieza:'🧹', Servicios:'💡', Salidas:'🎉', Transporte:'🚗', Otros:'💰' };
+
+function calcularBalances() {
+  const bal = { feche:0, rodri:0, nehue:0, civo:0 };
+  S.gastos.forEach(g => {
+    if (g.tipo === 'pago') {
+      bal[g.para] -= g.monto;
+      bal[g.de]   += g.monto;
+    } else {
+      const n = g.participantes.length;
+      g.participantes.forEach(p => {
+        const pct = g.porcentajes?.[p] ?? (100 / n);
+        const share = g.monto * pct / 100;
+        if (p !== g.pagador) {
+          bal[g.pagador] += share;
+          bal[p]         -= share;
+        }
+      });
+    }
+  });
+  return bal;
+}
+
+function deudaSimplificada(bal) {
+  const pos = Object.entries(bal).filter(([,v])=>v>0.01).map(([k,v])=>[k,v]).sort((a,b)=>b[1]-a[1]);
+  const neg = Object.entries(bal).filter(([,v])=>v<-0.01).map(([k,v])=>[k,-v]).sort((a,b)=>b[1]-a[1]);
+  const txs = [];
+  let pi=0, ni=0;
+  while (pi<pos.length && ni<neg.length) {
+    const amt = Math.min(pos[pi][1], neg[ni][1]);
+    txs.push({ de:neg[ni][0], para:pos[pi][0], monto:Math.round(amt*100)/100 });
+    pos[pi][1]-=amt; neg[ni][1]-=amt;
+    if(pos[pi][1]<0.01) pi++; if(neg[ni][1]<0.01) ni++;
+  }
+  return txs;
+}
+
+function toggleDivision(val) {
+  const row = document.getElementById('g-pct-inputs');
+  if (val==='pct') {
+    const parts = [...document.querySelectorAll('#g-participantes input:checked')].map(c=>c.value);
+    const share = parts.length ? Math.round(100/parts.length*100)/100 : 0;
+    row.innerHTML = parts.map(p=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <label style="width:60px;font-weight:500">${GUSERS[p]||p}</label>
+        <input type="number" id="pct-${p}" min="0" max="100" step="0.01" value="${share}" style="width:80px">
+        <span style="font-size:13px;color:var(--cr-muted)">%</span>
+      </div>`).join('');
+    row.style.display='block';
+  } else {
+    row.style.display='none';
+  }
+}
+
+function openGastoModal(id=null) {
+  document.getElementById('g-edit-id').value=id||'';
+  document.getElementById('gasto-modal-title').textContent=id?'Editar gasto':'Nuevo gasto';
+  document.getElementById('g-titulo').value='';
+  document.getElementById('g-monto').value='';
+  document.getElementById('g-fecha').value=new Date().toISOString().slice(0,10);
+  document.getElementById('g-pagador').value=currentUser||'feche';
+  document.getElementById('g-categoria').value='';
+  document.getElementById('g-descripcion').value='';
+  document.querySelectorAll('#g-participantes input').forEach(c=>c.checked=true);
+  document.querySelector('input[name="g-div"][value="igual"]').checked=true;
+  document.getElementById('g-pct-inputs').style.display='none';
+  if (id) {
+    const g=S.gastos.find(g=>g.id===id); if(!g) return;
+    document.getElementById('g-titulo').value=g.titulo;
+    document.getElementById('g-monto').value=g.monto;
+    document.getElementById('g-fecha').value=g.fecha;
+    document.getElementById('g-pagador').value=g.pagador;
+    document.getElementById('g-categoria').value=g.categoria||'';
+    document.getElementById('g-descripcion').value=g.descripcion||'';
+    document.querySelectorAll('#g-participantes input').forEach(c=>c.checked=(g.participantes||[]).includes(c.value));
+    if (g.porcentajes) {
+      document.querySelector('input[name="g-div"][value="pct"]').checked=true;
+      toggleDivision('pct');
+    }
+  }
+  document.getElementById('gasto-modal').classList.add('open');
+}
+
+async function guardarGasto() {
+  const titulo=document.getElementById('g-titulo').value.trim();
+  const monto=parseFloat(document.getElementById('g-monto').value);
+  if (!titulo) { toast('Ingresá un título'); return; }
+  if (!monto||monto<=0) { toast('Ingresá un monto válido'); return; }
+  const participantes=[...document.querySelectorAll('#g-participantes input:checked')].map(c=>c.value);
+  if (!participantes.length) { toast('Seleccioná al menos un participante'); return; }
+  const divType=document.querySelector('input[name="g-div"]:checked').value;
+  let porcentajes=null;
+  if (divType==='pct') {
+    porcentajes={};
+    let total=0;
+    for(const p of participantes){ const v=parseFloat(document.getElementById('pct-'+p)?.value||0); porcentajes[p]=v; total+=v; }
+    if (Math.abs(total-100)>0.5) { toast('Los porcentajes deben sumar 100%'); return; }
+  }
+  const editId=document.getElementById('g-edit-id').value;
+  const obj={
+    id:editId||uid(), tipo:'gasto', titulo, monto,
+    pagador:document.getElementById('g-pagador').value,
+    fecha:document.getElementById('g-fecha').value,
+    categoria:document.getElementById('g-categoria').value.trim(),
+    descripcion:document.getElementById('g-descripcion').value.trim(),
+    participantes, porcentajes,
+  };
+  try {
+    if(editId){ await dbUpdate('gastos',obj); const i=S.gastos.findIndex(g=>g.id===editId); if(i!==-1)S.gastos[i]=obj; }
+    else { await dbInsert('gastos',obj); S.gastos.unshift(obj); }
+    closeModal('gasto-modal'); renderGastos(); toast(editId?'Gasto actualizado':'¡Gasto registrado!');
+  } catch(e) { toast('Error al guardar'); }
+}
+
+function openSaldarModal(de='', para='', monto=0) {
+  document.getElementById('s-de').value=de||currentUser||'feche';
+  document.getElementById('s-para').value=para||(de==='feche'?'rodri':'feche');
+  document.getElementById('s-monto').value=monto||'';
+  document.getElementById('s-descripcion').value='';
+  document.getElementById('saldar-modal').classList.add('open');
+}
+
+async function confirmarSaldar() {
+  const de=document.getElementById('s-de').value;
+  const para=document.getElementById('s-para').value;
+  const monto=parseFloat(document.getElementById('s-monto').value);
+  if(de===para){ toast('No podés saldarte a vos mismo'); return; }
+  if(!monto||monto<=0){ toast('Ingresá un monto'); return; }
+  const obj={
+    id:uid(), tipo:'pago', de, para, monto,
+    descripcion:document.getElementById('s-descripcion').value.trim(),
+    fecha:new Date().toISOString().slice(0,10),
+  };
+  try {
+    await dbInsert('gastos', obj);
+    S.gastos.unshift(obj);
+    closeModal('saldar-modal'); renderGastos();
+    toast(`✅ Pago registrado: ${GUSERS[de]} → ${GUSERS[para]} $${monto.toFixed(2)}`);
+  } catch(e) { toast('Error al registrar'); }
+}
+
+async function eliminarGasto(id) {
+  confirmDlg('¿Eliminar este gasto?', async ()=>{
+    try {
+      await dbDelete('gastos',id);
+      S.gastos=S.gastos.filter(g=>g.id!==id); renderGastos(); toast('Eliminado');
+    } catch(e){ toast('Error'); }
+  });
+}
+
+function renderGastos() {
+  const balEl=document.getElementById('gastos-balance'); if(!balEl) return;
+  const listEl=document.getElementById('gastos-list');
+  const bal=calcularBalances();
+  const deudas=deudaSimplificada(bal);
+
+  const ALL=['feche','rodri','nehue','civo'];
+  const balCards=ALL.map(u=>{
+    const v=bal[u];
+    const cls=v>0.5?'balance-pos':v<-0.5?'balance-neg':'balance-zero';
+    const montoStr=`$${Math.abs(v).toFixed(2)}`;
+    const label=v>0.5?'Te deben':v<-0.5?'Debés':'Al día';
+    return `<div class="balance-card ${cls}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">${avatar(u,28)}<span class="balance-nombre">${GUSERS[u]}</span></div>
+      <div class="balance-monto ${v>0.5?'pos':v<-0.5?'neg':''}">${v>0.5?'+':v<-0.5?'-':''}${montoStr}</div>
+      <div style="font-size:11px;color:var(--cr-muted);margin-top:2px">${label}</div>
+    </div>`;
+  }).join('');
+
+  const deudaRows=deudas.length
+    ? deudas.map(d=>`
+      <div class="deuda-row">
+        <span>${avatar(d.de,22)} <strong>${GUSERS[d.de]}</strong> le debe <strong>$${d.monto.toFixed(2)}</strong> a ${avatar(d.para,22)} <strong>${GUSERS[d.para]}</strong></span>
+        <button class="btn btn-sm btn-success" style="font-size:12px" onclick="openSaldarModal('${d.de}','${d.para}',${d.monto})">Saldar</button>
+      </div>`).join('')
+    : '<p class="text-muted" style="padding:.5rem 0;font-size:13px">✅ Todo saldado — no hay deudas pendientes.</p>';
+
+  balEl.innerHTML=`
+    <div class="balance-grid">${balCards}</div>
+    <div style="margin-top:.75rem">${deudaRows}</div>`;
+
+  if(!S.gastos.length){ listEl.innerHTML='<div class="empty-state"><div class="ei">💸</div><p>No hay gastos registrados.</p></div>'; return; }
+  listEl.innerHTML=S.gastos.map(g=>{
+    if(g.tipo==='pago') {
+      return `<div class="gasto-item">
+        <div class="gasto-icono" style="background:#16a34a">💳</div>
+        <div class="gasto-body">
+          <div class="gasto-titulo">Pago: ${GUSERS[g.de]||g.de} → ${GUSERS[g.para]||g.para}</div>
+          <div class="gasto-sub">${fmtDate(g.fecha)}${g.descripcion?' · '+esc(g.descripcion):''}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="gasto-monto" style="color:var(--cr-success)">+$${g.monto.toFixed(2)}</div>
+          <button class="btn-icon" onclick="eliminarGasto('${g.id}')" style="margin-top:4px">🗑</button>
+        </div>
+      </div>`;
+    }
+    const n=g.participantes.length;
+    const emoji=CAT_EMOJI[g.categoria]||'💰';
+    const partsStr=g.participantes.map(p=>GUSERS[p]||p).join(', ');
+    const shareStr=g.porcentajes?'%':'÷'+n;
+    return `<div class="gasto-item">
+      <div class="gasto-icono">${emoji}</div>
+      <div class="gasto-body">
+        <div class="gasto-titulo">${esc(g.titulo)}${g.categoria?` <span class="badge" style="font-size:10px">${esc(g.categoria)}</span>`:''}</div>
+        <div class="gasto-sub">Pagó ${GUSERS[g.pagador]||g.pagador} · ${fmtDate(g.fecha)} · ${partsStr} (${shareStr})</div>
+        ${g.descripcion?`<div class="gasto-sub">${esc(g.descripcion)}</div>`:''}
+      </div>
+      <div style="text-align:right">
+        <div class="gasto-monto">$${g.monto.toFixed(2)}</div>
+        <div style="display:flex;gap:4px;margin-top:4px;justify-content:flex-end">
+          <button class="btn-icon" onclick="openGastoModal('${g.id}')">✏️</button>
+          <button class="btn-icon" onclick="eliminarGasto('${g.id}')">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); renderVotacionesPriv(); renderPersonal(); renderTurnos(); renderGastos(); updateNotifBadge(); }
 
 // ── GOOGLE CALENDAR ────────────────────────────────────────────
 function gcalUrl(titulo, fecha, hora='', descripcion='') {
