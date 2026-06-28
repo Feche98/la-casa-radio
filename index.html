@@ -342,6 +342,28 @@
     /* Compra modal */
     .compra-add-row { flex-direction: column; }
   }
+
+  /* INVITACIONES */
+  .page-inv { max-width:520px; margin:0 auto; padding:2rem 1rem; }
+  .inv-header { text-align:center; margin-bottom:2rem; }
+  .inv-header .inv-emoji { font-size:52px; line-height:1; }
+  .inv-header h2 { margin:.5rem 0 .25rem; font-size:22px; }
+  .inv-step { background:var(--cr-card); border-radius:16px; padding:1.5rem; margin-bottom:1rem; box-shadow:var(--cr-shadow); }
+  .inv-step h3 { margin:0 0 1rem; font-size:16px; color:var(--cr-muted); }
+  .inv-opcion-row { display:flex; align-items:center; gap:10px; padding:.6rem 0; border-bottom:.5px solid var(--cr-border); }
+  .inv-opcion-row:last-child { border-bottom:none; }
+  .inv-opcion-label { flex:1; font-size:14px; }
+  .inv-opcion-cant { width:60px; padding:4px 6px; border-radius:8px; border:1px solid var(--cr-border); background:var(--cr-card); color:var(--cr-text); font-size:13px; text-align:right; }
+  .inv-badge { display:inline-flex; align-items:center; gap:4px; background:var(--cr-primary); color:#fff; border-radius:12px; padding:2px 10px; font-size:12px; font-weight:600; }
+  .inv-badge.danger { background:var(--cr-danger); }
+  .inv-badge.success { background:var(--cr-success); }
+  .inv-badge.muted { background:var(--cr-border); color:var(--cr-text); }
+  .resp-row { display:flex; align-items:center; gap:8px; padding:.5rem 0; border-bottom:.5px solid var(--cr-border); font-size:13px; }
+  .resp-row:last-child { border-bottom:none; }
+  .grupo-chip { display:inline-flex; align-items:center; gap:4px; background:var(--cr-bg); border:1px solid var(--cr-border); border-radius:20px; padding:2px 10px; font-size:12px; cursor:pointer; transition:.15s; }
+  .grupo-chip:hover { border-color:var(--cr-primary); color:var(--cr-primary); }
+  .grupo-chip.sel { background:var(--cr-primary); color:#fff; border-color:var(--cr-primary); }
+  .inv-link-box { background:var(--cr-bg); border-radius:10px; padding:.75rem 1rem; font-size:13px; word-break:break-all; color:var(--cr-muted); margin:.5rem 0; }
 </style>
 </head>
 <body>
@@ -406,6 +428,18 @@
 </div>
 
 <!-- PRIVATE -->
+<!-- PÁGINA PÚBLICA RSVP -->
+<div id="page-invitacion" class="page">
+  <div class="page-inv">
+    <div class="inv-header">
+      <div class="inv-emoji" id="inv-emoji">🎉</div>
+      <h2 id="inv-nombre">Evento</h2>
+      <div id="inv-sub" style="color:var(--cr-muted);font-size:14px"></div>
+    </div>
+    <div id="inv-contenido"></div>
+  </div>
+</div>
+
 <div id="page-private" class="page">
   <div class="user-panel" id="user-panel">
     <div id="up-avatar"></div>
@@ -487,6 +521,7 @@
     <div class="section-header">
       <h2>🎉 Eventos</h2>
       <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-ghost" onclick="openContactosModal()">👥 Contactos</button>
         <button class="btn btn-sm btn-ghost" onclick="openTemplateModal()">⚙️ Templates</button>
         <button class="btn btn-primary btn-sm" onclick="openEventoModal()">+ Nuevo evento</button>
       </div>
@@ -1077,6 +1112,63 @@
       <button class="btn btn-ghost btn-sm" onclick="closeModal('evento-lista-modal')">Cerrar</button>
       <button class="btn btn-ghost btn-sm" onclick="copiarListaEvento()">📋 Copiar</button>
       <button class="btn btn-primary btn-sm" onclick="agregarListaEventoACompras()">➕ Agregar a Compras</button>
+    </div>
+  </div>
+</div>
+
+<!-- INVITAR MODAL -->
+<div class="modal-overlay" id="invitar-modal">
+  <div class="modal" style="max-width:480px">
+    <h3>📩 Invitar al evento</h3>
+    <input type="hidden" id="inv-evento-id">
+    <div class="form-group">
+      <label>Tipo de invitación</label>
+      <select id="inv-tipo">
+        <option value="asistencia">✋ Solo asistencia (¿venís? + ¿vegetariano?)</option>
+        <option value="menu-generico">🍽️ Menú genérico (eligen qué ítems van a comer)</option>
+        <option value="menu-personalizado">🔢 Menú personalizado (eligen ítems y cantidad)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Grupos a invitar <span style="font-size:12px;color:var(--cr-muted)">(de tus contactos)</span></label>
+      <div id="inv-grupos-sel" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
+      <div style="font-size:12px;color:var(--cr-muted)">Si no seleccionás ningún grupo, el link es válido para cualquiera.</div>
+    </div>
+    <div class="form-group" id="inv-link-section" style="display:none">
+      <label>Link para compartir</label>
+      <div class="inv-link-box" id="inv-link-box"></div>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="btn btn-sm btn-ghost" onclick="copiarLinkInvitacion()">📋 Copiar</button>
+        <a id="inv-wsp-btn" class="btn btn-sm" style="background:#25D366;color:#fff;text-decoration:none" target="_blank">💬 WhatsApp</a>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('invitar-modal')">Cerrar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarInvitacion()">Activar invitación</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTACTOS MODAL -->
+<div class="modal-overlay" id="contactos-modal">
+  <div class="modal" style="max-width:520px">
+    <h3>👥 Contactos</h3>
+    <p style="font-size:13px;color:var(--cr-muted);margin-bottom:1rem">Suscriptores registrados. Podés asignarles grupos para invitarlos a eventos.</p>
+    <div id="contactos-list" style="margin-bottom:1rem"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('contactos-modal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESPUESTAS MODAL -->
+<div class="modal-overlay" id="respuestas-modal">
+  <div class="modal" style="max-width:480px">
+    <h3 id="resp-titulo">Respuestas</h3>
+    <div id="resp-resumen" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
+    <div id="resp-lista"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('respuestas-modal')">Cerrar</button>
     </div>
   </div>
 </div>
@@ -2910,15 +3002,23 @@ function renderEventos() {
     const tpl = getTemplate(ev.templateId);
     const emoji = tpl?.emoji || '🎉';
     const cantItems = (ev.opcionesSeleccionadas||[]).length;
+    const respuestas = ev.respuestas || [];
+    const confirmados = respuestas.filter(r => r.asiste).length;
+    const noVan = respuestas.filter(r => r.asiste === false).length;
+    const invBadge = ev.invitacion?.activa
+      ? `<span class="inv-badge success" onclick="openRespuestasModal('${ev.id}')" style="cursor:pointer;margin-top:2px">📩 ${confirmados} van · ${noVan} no · ${respuestas.length - confirmados - noVan} sin resp.</span>`
+      : '';
     return `<div class="evento-card">
       <div class="evento-emoji">${emoji}</div>
       <div class="evento-body">
         <div class="evento-nombre">${esc(ev.nombre)}</div>
         <div class="evento-sub">${ev.fecha ? fmtDate(ev.fecha) : ''} · ${ev.personas || '?'} personas · ${cantItems} ingredientes</div>
         ${tpl ? `<div style="font-size:12px;color:var(--cr-muted);margin-top:2px">${esc(tpl.nombre)}</div>` : ''}
+        ${invBadge}
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
         <button class="btn btn-sm btn-primary" onclick="abrirListaEvento('${ev.id}')">🛒 Lista</button>
+        <button class="btn btn-sm btn-ghost" onclick="openInvitarModal('${ev.id}')">📩 Invitar</button>
         <div style="display:flex;gap:4px">
           <button class="btn-icon" onclick="openEventoModal('${ev.id}')">✏️</button>
           <button class="btn-icon" onclick="eliminarEvento('${ev.id}')">🗑</button>
@@ -2926,6 +3026,373 @@ function renderEventos() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ── CONTACTOS (suscriptores con grupos) ──────────────────────────
+function openContactosModal() {
+  renderContactosList();
+  document.getElementById('contactos-modal').classList.add('open');
+}
+
+function renderContactosList() {
+  const el = document.getElementById('contactos-list');
+  if (!S.suscriptores.length) {
+    el.innerHTML = '<p class="text-muted">No hay suscriptores registrados todavía.</p>';
+    return;
+  }
+  el.innerHTML = S.suscriptores.map(s => {
+    const grupos = s.grupos || [];
+    return `<div class="resp-row" style="align-items:flex-start;flex-direction:column;gap:6px;padding:.75rem 0">
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${esc(s.nombre||s.email)}</div>
+          <div style="font-size:12px;color:var(--cr-muted)">${esc(s.email)}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;width:100%">
+        ${grupos.map(g => `<span class="grupo-chip sel" onclick="quitarGrupo('${s.id}','${esc(g)}')">${esc(g)} ✕</span>`).join('')}
+        <input type="text" placeholder="+ nuevo grupo" style="border:1px dashed var(--cr-border);border-radius:20px;padding:2px 10px;font-size:12px;background:transparent;color:var(--cr-text);width:120px;outline:none"
+          onkeydown="if(event.key==='Enter'&&this.value.trim()){agregarGrupo('${s.id}',this.value.trim());this.value=''}">
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function agregarGrupo(susId, grupo) {
+  const s = S.suscriptores.find(x => x.id === susId); if (!s) return;
+  s.grupos = [...new Set([...(s.grupos||[]), grupo])];
+  try { await dbUpdate('suscriptores', s); renderContactosList(); } catch(e) { toast('Error al guardar'); }
+}
+
+async function quitarGrupo(susId, grupo) {
+  const s = S.suscriptores.find(x => x.id === susId); if (!s) return;
+  s.grupos = (s.grupos||[]).filter(g => g !== grupo);
+  try { await dbUpdate('suscriptores', s); renderContactosList(); } catch(e) { toast('Error al guardar'); }
+}
+
+function todosLosGrupos() {
+  const gs = new Set();
+  S.suscriptores.forEach(s => (s.grupos||[]).forEach(g => gs.add(g)));
+  return [...gs].sort();
+}
+
+// ── INVITACIÓN ──────────────────────────────────────────────────
+function openInvitarModal(eventoId) {
+  const ev = S.eventos.find(e => e.id === eventoId); if (!ev) return;
+  document.getElementById('inv-evento-id').value = eventoId;
+  // Grupos disponibles
+  const grupos = todosLosGrupos();
+  const invGrupos = ev.invitacion?.grupos || [];
+  const sel = document.getElementById('inv-grupos-sel');
+  sel.innerHTML = grupos.length
+    ? grupos.map(g => `<span class="grupo-chip${invGrupos.includes(g)?' sel':''}" onclick="toggleInvGrupo(this,'${esc(g)}')">${esc(g)}</span>`).join('')
+    : '<span style="font-size:12px;color:var(--cr-muted)">No hay grupos definidos. Agregá grupos desde 👥 Contactos.</span>';
+  document.getElementById('inv-tipo').value = ev.invitacion?.tipo || 'asistencia';
+  // Link si ya existe
+  if (ev.invitacion?.activa) {
+    mostrarLinkInvitacion(eventoId);
+  } else {
+    document.getElementById('inv-link-section').style.display = 'none';
+  }
+  document.getElementById('invitar-modal').classList.add('open');
+}
+
+function toggleInvGrupo(el, grupo) {
+  el.classList.toggle('sel');
+}
+
+function getGruposSeleccionados() {
+  return [...document.querySelectorAll('#inv-grupos-sel .grupo-chip.sel')].map(el => el.textContent.trim());
+}
+
+function invitacionBaseUrl(eventoId) {
+  return `${location.origin}${location.pathname}#invitacion/${eventoId}`;
+}
+
+function mostrarLinkInvitacion(eventoId) {
+  const link = invitacionBaseUrl(eventoId);
+  const sec = document.getElementById('inv-link-section');
+  sec.style.display = '';
+  document.getElementById('inv-link-box').textContent = link;
+  const texto = `Te invito al evento 🎉 Respondé acá: ${link}`;
+  document.getElementById('inv-wsp-btn').href = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+}
+
+function copiarLinkInvitacion() {
+  const link = document.getElementById('inv-link-box').textContent;
+  navigator.clipboard.writeText(link).then(() => toast('¡Link copiado!'));
+}
+
+async function guardarInvitacion() {
+  const eventoId = document.getElementById('inv-evento-id').value;
+  const ev = S.eventos.find(e => e.id === eventoId); if (!ev) return;
+  const tipo = document.getElementById('inv-tipo').value;
+  const grupos = getGruposSeleccionados();
+  ev.invitacion = { tipo, grupos, activa: true };
+  if (!ev.respuestas) ev.respuestas = [];
+  // Prefill pending responders from matching subscribers
+  const invitados = grupos.length
+    ? S.suscriptores.filter(s => (s.grupos||[]).some(g => grupos.includes(g)))
+    : S.suscriptores;
+  invitados.forEach(s => {
+    if (!ev.respuestas.find(r => r.email === s.email)) {
+      ev.respuestas.push({ id: uid(), suscriptorId: s.id, nombre: s.nombre||s.email, email: s.email, asiste: null, esVeg: false, items: {}, fecha: null });
+    }
+  });
+  try {
+    await dbUpdate('eventos', ev);
+    mostrarLinkInvitacion(eventoId);
+    renderEventos();
+    toast('¡Invitación activada!');
+  } catch(e) { toast('Error al guardar'); }
+}
+
+// ── RESPUESTAS MODAL ────────────────────────────────────────────
+function openRespuestasModal(eventoId) {
+  const ev = S.eventos.find(e => e.id === eventoId); if (!ev) return;
+  document.getElementById('resp-titulo').textContent = `📩 Respuestas — ${esc(ev.nombre)}`;
+  const rs = ev.respuestas || [];
+  const van = rs.filter(r => r.asiste === true);
+  const noVan = rs.filter(r => r.asiste === false);
+  const sinResp = rs.filter(r => r.asiste === null);
+  document.getElementById('resp-resumen').innerHTML =
+    `<span class="inv-badge success">✅ Van: ${van.length}</span>
+     <span class="inv-badge danger">❌ No van: ${noVan.length}</span>
+     <span class="inv-badge muted">⏳ Sin responder: ${sinResp.length}</span>
+     ${van.filter(r=>r.esVeg).length ? `<span class="inv-badge" style="background:var(--cr-warning);color:#000">🥦 Veg: ${van.filter(r=>r.esVeg).length}</span>` : ''}`;
+  document.getElementById('resp-lista').innerHTML = rs.length ? rs.map(r => {
+    const icon = r.asiste === true ? '✅' : r.asiste === false ? '❌' : '⏳';
+    const veg = r.asiste && r.esVeg ? ' 🥦' : '';
+    const itemsStr = Object.keys(r.items||{}).length ? `<div style="font-size:11px;color:var(--cr-muted);margin-top:2px">${Object.entries(r.items).map(([k,v])=>v?k+(typeof v==='number'&&v!==true?' x'+v:''):'').filter(Boolean).join(', ')}</div>` : '';
+    return `<div class="resp-row"><span style="font-size:18px">${icon}</span><div><div style="font-weight:600">${esc(r.nombre)}${veg}</div><div style="font-size:12px;color:var(--cr-muted)">${esc(r.email||'')}${r.fecha?' · '+fmtDate(r.fecha.slice(0,10)):''}</div>${itemsStr}</div></div>`;
+  }).join('') : '<p class="text-muted">Nadie respondió todavía.</p>';
+  document.getElementById('respuestas-modal').classList.add('open');
+}
+
+// ── PÁGINA PÚBLICA RSVP ─────────────────────────────────────────
+async function showInvitacionPage(eventoId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-invitacion').classList.add('active');
+  document.getElementById('nav-public').classList.remove('active');
+  document.getElementById('nav-private').classList.remove('active');
+
+  // Cargar datos frescos
+  const eventos = await dbLoad('eventos');
+  S.eventos = eventos;
+  const subs = await dbLoad('suscriptores');
+  S.suscriptores = subs;
+
+  const ev = S.eventos.find(e => e.id === eventoId);
+  if (!ev || !ev.invitacion?.activa) {
+    document.getElementById('inv-contenido').innerHTML = '<div class="inv-step"><p>Este evento no tiene una invitación activa.</p></div>';
+    return;
+  }
+  const tpl = getTemplate(ev.templateId);
+  document.getElementById('inv-emoji').textContent = tpl?.emoji || '🎉';
+  document.getElementById('inv-nombre').textContent = ev.nombre;
+  document.getElementById('inv-sub').textContent = ev.fecha ? fmtDate(ev.fecha) : '';
+
+  // Calcular quiénes son los invitados
+  const grupos = ev.invitacion.grupos || [];
+  const invitados = grupos.length
+    ? S.suscriptores.filter(s => (s.grupos||[]).some(g => grupos.includes(g)))
+    : S.suscriptores;
+
+  window._rsvpEventoId = eventoId;
+  window._rsvpInvitados = invitados;
+  window._rsvpEv = ev;
+  renderRsvpPaso1();
+}
+
+function renderRsvpPaso1() {
+  const ev = window._rsvpEv;
+  const invitados = window._rsvpInvitados;
+  const yaRespondio = (localStorage.getItem('rsvp_' + ev.id));
+  if (yaRespondio) {
+    document.getElementById('inv-contenido').innerHTML = `
+      <div class="inv-step" style="text-align:center">
+        <div style="font-size:40px">✅</div>
+        <h3 style="margin:.5rem 0">¡Ya respondiste!</h3>
+        <p style="color:var(--cr-muted)">Gracias por confirmar tu asistencia.</p>
+        <button class="btn btn-sm btn-ghost" style="margin-top:1rem" onclick="localStorage.removeItem('rsvp_${ev.id}');renderRsvpPaso1()">Cambiar mi respuesta</button>
+      </div>`;
+    return;
+  }
+  document.getElementById('inv-contenido').innerHTML = `
+    <div class="inv-step">
+      <h3>¿Quién sos?</h3>
+      ${invitados.length ? `
+        <div class="form-group">
+          <label>Seleccioná tu nombre</label>
+          <select id="rsvp-subs-sel" onchange="onRsvpSubChange(this)">
+            <option value="">— Elegí —</option>
+            ${invitados.map(s => `<option value="${s.id}" data-email="${esc(s.email)}" data-nombre="${esc(s.nombre||s.email)}">${esc(s.nombre||s.email)}</option>`).join('')}
+            <option value="__otro__">Otro / No estoy en la lista</option>
+          </select>
+        </div>` : ''}
+      <div id="rsvp-nombre-extra" style="${invitados.length?'display:none':''}">
+        <div class="form-group">
+          <label>Tu nombre</label>
+          <input type="text" id="rsvp-nombre-input" placeholder="Nombre">
+        </div>
+        <div class="form-group">
+          <label>Tu email (opcional)</label>
+          <input type="email" id="rsvp-email-input" placeholder="tucorreo@mail.com">
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:.5rem" onclick="irPaso2Rsvp()">Continuar →</button>
+    </div>`;
+}
+
+function onRsvpSubChange(sel) {
+  const extra = document.getElementById('rsvp-nombre-extra');
+  extra.style.display = sel.value === '__otro__' ? '' : 'none';
+}
+
+function irPaso2Rsvp() {
+  const ev = window._rsvpEv;
+  const invitados = window._rsvpInvitados;
+  let nombre, email, suscriptorId = null;
+  if (invitados.length) {
+    const sel = document.getElementById('rsvp-subs-sel');
+    if (!sel.value) { toast('Elegí quién sos'); return; }
+    if (sel.value === '__otro__') {
+      nombre = document.getElementById('rsvp-nombre-input')?.value.trim();
+      email = document.getElementById('rsvp-email-input')?.value.trim();
+      if (!nombre) { toast('Ingresá tu nombre'); return; }
+    } else {
+      suscriptorId = sel.value;
+      const opt = sel.options[sel.selectedIndex];
+      nombre = opt.dataset.nombre;
+      email = opt.dataset.email;
+    }
+  } else {
+    nombre = document.getElementById('rsvp-nombre-input')?.value.trim();
+    email = document.getElementById('rsvp-email-input')?.value.trim();
+    if (!nombre) { toast('Ingresá tu nombre'); return; }
+  }
+  window._rsvpIdent = { nombre, email, suscriptorId };
+  const tipo = ev.invitacion.tipo;
+  const tpl = getTemplate(ev.templateId);
+  let paso2Html = '';
+  if (tipo === 'asistencia') {
+    paso2Html = `
+      <div class="inv-step">
+        <h3>Hola, ${esc(nombre)} 👋</h3>
+        <div class="form-group">
+          <label>¿Vas a venir?</label>
+          <div style="display:flex;gap:10px;margin-top:.5rem">
+            <button class="btn btn-success" id="rsvp-si" onclick="selRsvpAsiste(true)" style="flex:1">✅ Sí, voy</button>
+            <button class="btn btn-ghost" id="rsvp-no" onclick="selRsvpAsiste(false)" style="flex:1;border:1px solid var(--cr-border)">❌ No puedo</button>
+          </div>
+        </div>
+        <div id="rsvp-veg-section" style="display:none">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;margin-top:.5rem">
+            <input type="checkbox" id="rsvp-veg"> Soy vegetariano/a 🥦
+          </label>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:1rem" onclick="submitRsvp()">Confirmar</button>
+      </div>`;
+  } else {
+    const opciones = tpl ? buildRsvpOpciones(tpl, ev, tipo) : '';
+    paso2Html = `
+      <div class="inv-step">
+        <h3>Hola, ${esc(nombre)} 👋</h3>
+        <div class="form-group">
+          <label>¿Vas a venir?</label>
+          <div style="display:flex;gap:10px;margin-top:.5rem">
+            <button class="btn btn-success" id="rsvp-si" onclick="selRsvpAsiste(true)" style="flex:1">✅ Sí, voy</button>
+            <button class="btn btn-ghost" id="rsvp-no" onclick="selRsvpAsiste(false)" style="flex:1;border:1px solid var(--cr-border)">❌ No puedo</button>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;margin:.75rem 0">
+          <input type="checkbox" id="rsvp-veg"> Soy vegetariano/a 🥦
+        </label>
+        <div id="rsvp-menu-section" style="display:none">
+          <div style="font-weight:600;font-size:14px;margin-bottom:.5rem">¿Qué vas a comer?</div>
+          ${opciones}
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:1rem" onclick="submitRsvp()">Confirmar</button>
+      </div>`;
+  }
+  document.getElementById('inv-contenido').innerHTML = paso2Html;
+}
+
+function buildRsvpOpciones(tpl, ev, tipo) {
+  const sel = new Set(ev.opcionesSeleccionadas || []);
+  const rows = [];
+  (tpl.opciones||[]).forEach(op => {
+    if (!sel.has(op.id)) return;
+    const hasSubs = op.subIngredientes?.length;
+    if (hasSubs) {
+      rows.push(`<div class="inv-opcion-row"><span class="inv-opcion-label" style="font-weight:600">${esc(op.nombre)}</span></div>`);
+      op.subIngredientes.forEach(sub => {
+        const key = `${op.id}::${sub.id}`;
+        if (!sel.has(key)) return;
+        rows.push(tipo === 'menu-personalizado'
+          ? `<div class="inv-opcion-row" style="margin-left:16px"><span class="inv-opcion-label">↳ ${esc(sub.nombre)}</span><input class="inv-opcion-cant" type="number" min="0" step="1" placeholder="0" data-key="${key}"></div>`
+          : `<div class="inv-opcion-row" style="margin-left:16px"><label style="display:flex;align-items:center;gap:8px;flex:1"><input type="checkbox" data-key="${key}"> <span>↳ ${esc(sub.nombre)}</span></label></div>`);
+      });
+    } else {
+      rows.push(tipo === 'menu-personalizado'
+        ? `<div class="inv-opcion-row"><span class="inv-opcion-label">${esc(op.nombre)}</span><input class="inv-opcion-cant" type="number" min="0" step="1" placeholder="0" data-key="${op.id}"></div>`
+        : `<div class="inv-opcion-row"><label style="display:flex;align-items:center;gap:8px;flex:1"><input type="checkbox" data-key="${op.id}"> <span>${esc(op.nombre)}</span></label></div>`);
+    }
+  });
+  return rows.join('');
+}
+
+let _rsvpAsiste = null;
+function selRsvpAsiste(val) {
+  _rsvpAsiste = val;
+  document.getElementById('rsvp-si').style.opacity = val ? '1' : '.5';
+  document.getElementById('rsvp-no').style.opacity = !val ? '1' : '.5';
+  const vegSec = document.getElementById('rsvp-veg-section');
+  if (vegSec) vegSec.style.display = val ? '' : 'none';
+  const menuSec = document.getElementById('rsvp-menu-section');
+  if (menuSec) menuSec.style.display = val ? '' : 'none';
+}
+
+async function submitRsvp() {
+  if (_rsvpAsiste === null) { toast('Indicá si vas o no'); return; }
+  const { nombre, email, suscriptorId } = window._rsvpIdent;
+  const eventoId = window._rsvpEventoId;
+  const ev = window._rsvpEv;
+  const esVeg = document.getElementById('rsvp-veg')?.checked || false;
+  const tipo = ev.invitacion.tipo;
+  const items = {};
+  if (_rsvpAsiste && tipo !== 'asistencia') {
+    document.querySelectorAll('[data-key]').forEach(el => {
+      if (el.type === 'checkbox') { if (el.checked) items[el.dataset.key] = true; }
+      else if (el.type === 'number') { const v = parseFloat(el.value); if (v > 0) items[el.dataset.key] = v; }
+    });
+  }
+  // Buscar o crear la respuesta
+  if (!ev.respuestas) ev.respuestas = [];
+  let resp = suscriptorId
+    ? ev.respuestas.find(r => r.suscriptorId === suscriptorId)
+    : ev.respuestas.find(r => r.email === email && email);
+  if (resp) {
+    Object.assign(resp, { asiste: _rsvpAsiste, esVeg, items, fecha: new Date().toISOString(), nombre });
+  } else {
+    ev.respuestas.push({ id: uid(), suscriptorId, nombre, email: email||'', asiste: _rsvpAsiste, esVeg, items, fecha: new Date().toISOString() });
+  }
+  // Actualizar personas automáticamente si hay respuestas
+  const van = ev.respuestas.filter(r => r.asiste === true);
+  if (van.length > 0) {
+    ev.personas = van.length;
+    ev.personasVeg = van.filter(r => r.esVeg).length;
+  }
+  try {
+    await dbUpdate('eventos', ev);
+    localStorage.setItem('rsvp_' + eventoId, '1');
+    document.getElementById('inv-contenido').innerHTML = `
+      <div class="inv-step" style="text-align:center">
+        <div style="font-size:48px">${_rsvpAsiste ? '🎉' : '😢'}</div>
+        <h3 style="margin:.5rem 0">${_rsvpAsiste ? '¡Gracias por confirmar!' : 'Gracias por avisarnos'}</h3>
+        <p style="color:var(--cr-muted)">${_rsvpAsiste ? 'Tu lugar está reservado. ¡Nos vemos!' : 'Esperamos verte en la próxima.'}</p>
+      </div>`;
+  } catch(e) { toast('Error al guardar tu respuesta'); }
 }
 
 function onEvTemplateChange() {
@@ -3836,6 +4303,14 @@ function renderTurnos() {
   updateAuthUI();
   updateSubUI();
   await loadAll();
+
+  const hash = window.location.hash;
+  if (hash.startsWith('#invitacion/')) {
+    const eventoId = hash.slice('#invitacion/'.length);
+    await showInvitacionPage(eventoId);
+    return;
+  }
+
   renderNewsFeed();
   if (subSession) { renderVipFeed(); renderVotacionesPub(); }
   if (currentUser) updateNotifBadge();
