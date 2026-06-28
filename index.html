@@ -3480,6 +3480,27 @@ async function marcarHabitoHecho(id) {
   try { await dbUpdate('personal', item); renderPersonal(); toast('¡Hábito marcado!'); } catch(e) { toast('Error'); }
 }
 
+async function moverPersonalItem(id, tipo, dir) {
+  const items = S.personal.filter(p => p.usuario === currentUser && p.tipo === tipo)
+    .sort((a,b) => (a.orden??999) - (b.orden??999));
+  // Normalizar orden
+  items.forEach((it, i) => { it.orden = i; });
+  const idx = items.findIndex(it => it.id === id);
+  const swapIdx = idx + dir;
+  if (swapIdx < 0 || swapIdx >= items.length) return;
+  // Intercambiar
+  const tmp = items[idx].orden;
+  items[idx].orden = items[swapIdx].orden;
+  items[swapIdx].orden = tmp;
+  try {
+    await Promise.all([
+      dbUpdate('personal', items[idx]),
+      dbUpdate('personal', items[swapIdx])
+    ]);
+    renderPersonal();
+  } catch(e) { toast('Error al reordenar'); }
+}
+
 async function eliminarPersonal(id) {
   confirmDlg('¿Eliminar este ítem?', async () => {
     try {
@@ -3526,12 +3547,24 @@ function renderPersonal() {
 
   // ── Lista personal ──
   const tarEl = document.getElementById('personal-tareas');
-  const tareas = mine.filter(p=>p.tipo==='tarea').sort((a,b)=>a.hecho-b.hecho);
+  const tareas = mine.filter(p=>p.tipo==='tarea').sort((a,b)=>{
+    if (a.hecho !== b.hecho) return a.hecho - b.hecho;
+    return (a.orden??999) - (b.orden??999);
+  });
   if (!tareas.length) {
     tarEl.innerHTML = '<p class="text-muted" style="padding:.5rem 0">Tu lista está vacía.</p>';
   } else {
-    tarEl.innerHTML = tareas.map(t => `
-      <div class="personal-item">
+    // Solo las no hechas pueden reordenarse
+    const noHechas = tareas.filter(t=>!t.hecho);
+    tarEl.innerHTML = tareas.map((t,i) => {
+      const posNoHecha = noHechas.indexOf(t);
+      const puedeSubir = !t.hecho && posNoHecha > 0;
+      const puedeBajar = !t.hecho && posNoHecha < noHechas.length - 1;
+      return `<div class="personal-item">
+        <div style="display:flex;flex-direction:column;gap:1px">
+          <button class="btn-icon" style="font-size:12px;padding:0 3px;line-height:1.2${puedeSubir?'':';opacity:.25;cursor:default'}" onclick="${puedeSubir?`moverPersonalItem('${t.id}','tarea',-1)`:''}" ${puedeSubir?'':'disabled'}>↑</button>
+          <button class="btn-icon" style="font-size:12px;padding:0 3px;line-height:1.2${puedeBajar?'':';opacity:.25;cursor:default'}" onclick="${puedeBajar?`moverPersonalItem('${t.id}','tarea',1)`:''}" ${puedeBajar?'':'disabled'}>↓</button>
+        </div>
         <input type="checkbox" ${t.hecho?'checked':''} onchange="togglePersonalHecho('${t.id}')"
           style="width:17px;height:17px;flex-shrink:0;cursor:pointer;margin-top:2px">
         <div class="personal-item-body" style="${t.hecho?'opacity:.5;text-decoration:line-through':''}">
@@ -3542,16 +3575,17 @@ function renderPersonal() {
           <button class="btn-icon" onclick="openPersonalModal('tarea','${t.id}')">✏️</button>
           <button class="btn-icon" onclick="eliminarPersonal('${t.id}')">🗑</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   // ── Hábitos ──
   const habEl = document.getElementById('personal-habitos');
-  const habitos = mine.filter(p=>p.tipo==='habito');
+  const habitos = mine.filter(p=>p.tipo==='habito').sort((a,b)=>(a.orden??999)-(b.orden??999));
   if (!habitos.length) {
     habEl.innerHTML = '<p class="text-muted" style="padding:.5rem 0">No tenés hábitos registrados.</p>';
   } else {
-    habEl.innerHTML = habitos.map(h => {
+    habEl.innerHTML = habitos.map((h, hi) => {
       const diasDesdeUlt = h.ultimaVez ? diasDesde(h.ultimaVez) : null;
       const pct = diasDesdeUlt !== null ? Math.min(100, Math.round(diasDesdeUlt / h.frecuencia * 100)) : 0;
       const vencido = diasDesdeUlt !== null && diasDesdeUlt >= h.frecuencia;
@@ -3571,8 +3605,14 @@ function renderPersonal() {
       const proxFecha = h.ultimaVez
         ? new Date(new Date(h.ultimaVez).getTime() + h.frecuencia * 86400000).toISOString().slice(0,10)
         : today;
+      const puedeSubirH = hi > 0;
+      const puedeBajarH = hi < habitos.length - 1;
       return `<div class="personal-item" style="flex-direction:column;align-items:stretch;gap:6px">
         <div style="display:flex;align-items:center;gap:10px">
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <button class="btn-icon" style="font-size:12px;padding:0 3px;line-height:1.2${puedeSubirH?'':';opacity:.25;cursor:default'}" onclick="${puedeSubirH?`moverPersonalItem('${h.id}','habito',-1)`:''}" ${puedeSubirH?'':'disabled'}>↑</button>
+            <button class="btn-icon" style="font-size:12px;padding:0 3px;line-height:1.2${puedeBajarH?'':';opacity:.25;cursor:default'}" onclick="${puedeBajarH?`moverPersonalItem('${h.id}','habito',1)`:''}" ${puedeBajarH?'':'disabled'}>↓</button>
+          </div>
           <div class="personal-item-body">
             <div class="personal-item-nombre">${esc(h.nombre)} <span style="font-size:12px;font-weight:400;color:var(--cr-muted)">cada ${h.frecuencia}d</span></div>
             <div class="personal-item-sub" style="color:${statusColor}">${statusTxt}</div>
