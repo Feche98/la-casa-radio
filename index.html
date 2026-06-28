@@ -3106,9 +3106,11 @@ function openInvitarModal(eventoId) {
   // Grupos disponibles
   const grupos = todosLosGrupos();
   const invGrupos = ev.invitacion?.grupos || [];
-  const sel = document.getElementById('inv-grupos-sel');
-  sel.innerHTML = grupos.length
-    ? grupos.map(g => `<span class="grupo-chip${invGrupos.includes(g)?' sel':''}" onclick="toggleInvGrupo(this,'${esc(g)}')">${esc(g)}</span>`).join('')
+  const selEl = document.getElementById('inv-grupos-sel');
+  const chipOn  = 'display:inline-flex;align-items:center;background:#6c47ff;color:#fff;border:2px solid #6c47ff;border-radius:20px;padding:4px 12px;font-size:13px;cursor:pointer;font-weight:600';
+  const chipOff = 'display:inline-flex;align-items:center;background:#fff;color:#333;border:2px solid #ccc;border-radius:20px;padding:4px 12px;font-size:13px;cursor:pointer;font-weight:500';
+  selEl.innerHTML = grupos.length
+    ? grupos.map(g => `<span data-grupo="${esc(g)}" style="${invGrupos.includes(g)?chipOn:chipOff}" onclick="toggleInvGrupo(this)">${esc(g)}</span>`).join('')
     : '<span style="font-size:12px;color:var(--cr-muted)">No hay grupos definidos. Agregá grupos desde 👥 Contactos.</span>';
   document.getElementById('inv-tipo').value = ev.invitacion?.tipo || 'asistencia';
   // Link si ya existe
@@ -3120,12 +3122,17 @@ function openInvitarModal(eventoId) {
   document.getElementById('invitar-modal').classList.add('open');
 }
 
-function toggleInvGrupo(el, grupo) {
-  el.classList.toggle('sel');
+function toggleInvGrupo(el) {
+  const on  = 'display:inline-flex;align-items:center;background:#6c47ff;color:#fff;border:2px solid #6c47ff;border-radius:20px;padding:4px 12px;font-size:13px;cursor:pointer;font-weight:600';
+  const off = 'display:inline-flex;align-items:center;background:#fff;color:#333;border:2px solid #ccc;border-radius:20px;padding:4px 12px;font-size:13px;cursor:pointer;font-weight:500';
+  const active = el.style.background === 'rgb(108, 71, 255)' || el.style.background === '#6c47ff';
+  el.style.cssText = active ? off : on;
 }
 
 function getGruposSeleccionados() {
-  return [...document.querySelectorAll('#inv-grupos-sel .grupo-chip.sel')].map(el => el.textContent.trim());
+  return [...document.querySelectorAll('#inv-grupos-sel [data-grupo]')]
+    .filter(el => el.style.background === 'rgb(108, 71, 255)' || el.style.background === '#6c47ff')
+    .map(el => el.dataset.grupo);
 }
 
 function invitacionBaseUrl(eventoId) {
@@ -3328,12 +3335,11 @@ function irPaso2Rsvp() {
             <button class="btn btn-ghost" id="rsvp-no" onclick="selRsvpAsiste(false)" style="flex:1;border:1px solid var(--cr-border)">❌ No puedo</button>
           </div>
         </div>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;margin:.75rem 0">
-          <input type="checkbox" id="rsvp-veg"> Soy vegetariano/a 🥦
-        </label>
-        <div id="rsvp-menu-section" style="display:none">
-          <div style="font-weight:600;font-size:14px;margin-bottom:.5rem">¿Qué vas a comer?</div>
-          ${opciones}
+        <div id="rsvp-extras" style="display:none">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;margin:.75rem 0">
+            <input type="checkbox" id="rsvp-veg"> Soy vegetariano/a 🥦
+          </label>
+          ${opciones ? `<div style="font-weight:600;font-size:14px;margin:.75rem 0 .5rem">¿Qué vas a comer?</div>${opciones}` : ''}
         </div>
         <button class="btn btn-primary" style="width:100%;margin-top:1rem" onclick="submitRsvp()">Confirmar</button>
       </div>`;
@@ -3372,8 +3378,8 @@ function selRsvpAsiste(val) {
   document.getElementById('rsvp-no').style.opacity = !val ? '1' : '.5';
   const vegSec = document.getElementById('rsvp-veg-section');
   if (vegSec) vegSec.style.display = val ? '' : 'none';
-  const menuSec = document.getElementById('rsvp-menu-section');
-  if (menuSec) menuSec.style.display = val ? '' : 'none';
+  const extras = document.getElementById('rsvp-extras');
+  if (extras) extras.style.display = val ? '' : 'none';
 }
 
 async function submitRsvp() {
