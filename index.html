@@ -1206,7 +1206,10 @@
       <div class="form-group" style="flex:0 0 80px"><label>Emoji</label><input type="text" id="etpl-emoji" style="width:60px"></div>
     </div>
     <div class="form-group">
-      <label>Ingredientes</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <label>Ingredientes</label>
+        <button type="button" class="btn btn-sm btn-ghost" style="font-size:11px;padding:2px 8px" onclick="toggleSeleccionarTodosEtpl()">Sel. todos</button>
+      </div>
       <div id="etpl-opciones-list" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
       <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="etplAgregarOpcion()">+ Agregar ingrediente</button>
     </div>
@@ -3533,6 +3536,12 @@ function recalcCantidades() {
       }
       return evRow(op, op.id, op.nombre, op.cantPP, op.unidad);
     }).join('');
+}
+
+function toggleSeleccionarTodosEtpl() {
+  const todosActivos = etplOpciones.every(op => op.def);
+  etplOpciones.forEach(op => { op.def = !todosActivos; });
+  renderEtplOpciones();
 }
 
 function toggleSeleccionarTodos() {
