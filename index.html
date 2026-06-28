@@ -3305,43 +3305,47 @@ function irPaso2Rsvp() {
   const tipo = ev.invitacion.tipo;
   const tpl = getTemplate(ev.templateId);
   let paso2Html = '';
+  const btnBase = 'flex:1;padding:.6rem;border-radius:10px;border:2px solid #ccc;background:#fff;color:#555;font-size:14px;font-weight:600;cursor:pointer;transition:.15s';
   if (tipo === 'asistencia') {
     paso2Html = `
       <div class="inv-step">
         <h3>Hola, ${esc(nombre)} 👋</h3>
         <div class="form-group">
-          <label>¿Vas a venir?</label>
+          <label style="font-weight:600">¿Vas a venir?</label>
           <div style="display:flex;gap:10px;margin-top:.5rem">
-            <button class="btn btn-success" id="rsvp-si" onclick="selRsvpAsiste(true)" style="flex:1">✅ Sí, voy</button>
-            <button class="btn btn-ghost" id="rsvp-no" onclick="selRsvpAsiste(false)" style="flex:1;border:1px solid var(--cr-border)">❌ No puedo</button>
+            <button id="rsvp-si" onclick="selRsvpAsiste(true)" style="${btnBase}">✅ Sí, voy</button>
+            <button id="rsvp-no" onclick="selRsvpAsiste(false)" style="${btnBase}">❌ No puedo</button>
           </div>
         </div>
-        <div id="rsvp-veg-section" style="display:none">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;margin-top:.5rem">
+        <div id="rsvp-veg-section" style="display:none;margin-top:.5rem">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
             <input type="checkbox" id="rsvp-veg"> Soy vegetariano/a 🥦
           </label>
         </div>
-        <button class="btn btn-primary" style="width:100%;margin-top:1rem" onclick="submitRsvp()">Confirmar</button>
+        <button class="btn btn-primary" style="width:100%;margin-top:1.25rem" onclick="submitRsvp()">Confirmar</button>
       </div>`;
   } else {
     const opciones = tpl ? buildRsvpOpciones(tpl, ev, tipo) : '';
+    const tipoLabel = tipo === 'menu-generico' ? 'Marcá qué vas a comer' : 'Indicá cuánto vas a comer de cada cosa';
     paso2Html = `
       <div class="inv-step">
         <h3>Hola, ${esc(nombre)} 👋</h3>
         <div class="form-group">
-          <label>¿Vas a venir?</label>
+          <label style="font-weight:600">¿Vas a venir?</label>
           <div style="display:flex;gap:10px;margin-top:.5rem">
-            <button class="btn btn-success" id="rsvp-si" onclick="selRsvpAsiste(true)" style="flex:1">✅ Sí, voy</button>
-            <button class="btn btn-ghost" id="rsvp-no" onclick="selRsvpAsiste(false)" style="flex:1;border:1px solid var(--cr-border)">❌ No puedo</button>
+            <button id="rsvp-si" onclick="selRsvpAsiste(true)" style="${btnBase}">✅ Sí, voy</button>
+            <button id="rsvp-no" onclick="selRsvpAsiste(false)" style="${btnBase}">❌ No puedo</button>
           </div>
         </div>
-        <div id="rsvp-extras" style="display:none">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;margin:.75rem 0">
-            <input type="checkbox" id="rsvp-veg"> Soy vegetariano/a 🥦
-          </label>
-          ${opciones ? `<div style="font-weight:600;font-size:14px;margin:.75rem 0 .5rem">¿Qué vas a comer?</div>${opciones}` : ''}
-        </div>
-        <button class="btn btn-primary" style="width:100%;margin-top:1rem" onclick="submitRsvp()">Confirmar</button>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;margin:.75rem 0">
+          <input type="checkbox" id="rsvp-veg"> Soy vegetariano/a 🥦
+        </label>
+        ${opciones ? `
+        <div style="margin-top:.5rem">
+          <div style="font-weight:600;font-size:14px;margin-bottom:.5rem;color:#444">${tipoLabel}:</div>
+          <div id="rsvp-extras">${opciones}</div>
+        </div>` : ''}
+        <button class="btn btn-primary" style="width:100%;margin-top:1.25rem" onclick="submitRsvp()">Confirmar</button>
       </div>`;
   }
   document.getElementById('inv-contenido').innerHTML = paso2Html;
@@ -3374,12 +3378,13 @@ function buildRsvpOpciones(tpl, ev, tipo) {
 let _rsvpAsiste = null;
 function selRsvpAsiste(val) {
   _rsvpAsiste = val;
-  document.getElementById('rsvp-si').style.opacity = val ? '1' : '.5';
-  document.getElementById('rsvp-no').style.opacity = !val ? '1' : '.5';
+  const si = document.getElementById('rsvp-si');
+  const no = document.getElementById('rsvp-no');
+  const onStyle  = 'flex:1;padding:.6rem;border-radius:10px;border:2px solid;font-size:14px;font-weight:600;cursor:pointer';
+  if (si) si.style.cssText  = onStyle + (val  ? ';border-color:#22c55e;background:#f0fdf4;color:#16a34a' : ';border-color:#ccc;background:#fff;color:#555');
+  if (no) no.style.cssText  = onStyle + (!val ? ';border-color:#ef4444;background:#fef2f2;color:#dc2626' : ';border-color:#ccc;background:#fff;color:#555');
   const vegSec = document.getElementById('rsvp-veg-section');
   if (vegSec) vegSec.style.display = val ? '' : 'none';
-  const extras = document.getElementById('rsvp-extras');
-  if (extras) extras.style.display = val ? '' : 'none';
 }
 
 async function submitRsvp() {
