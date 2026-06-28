@@ -1082,6 +1082,15 @@
         <select id="ev-template" onchange="onEvTemplateChange()"></select>
       </div>
       <div class="form-group">
+        <label>Modalidad</label>
+        <select id="ev-modo" onchange="onEvModoChange()">
+          <option value="manual">🧮 Lo organizo yo</option>
+          <option value="invitacion">📩 Lo publico (la gente responde)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row" id="ev-personas-row">
+      <div class="form-group">
         <label>¿Cuántos somos?</label>
         <input type="number" id="ev-personas" min="1" value="4" onchange="recalcCantidades()">
       </div>
@@ -1091,12 +1100,12 @@
       </div>
     </div>
     <div class="form-group">
-      <label>¿Qué incluimos? <span style="font-weight:400;font-size:12px;color:var(--cr-muted)">— editá las cantidades si querés</span></label>
+      <label id="ev-opciones-label">¿Qué incluimos? <span id="ev-opciones-sublabel" style="font-weight:400;font-size:12px;color:var(--cr-muted)">— editá las cantidades si querés</span></label>
       <div id="ev-opciones" style="margin-top:6px;display:flex;flex-direction:column;gap:6px"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('evento-modal')">Cancelar</button>
-      <button class="btn btn-success btn-sm" onclick="verListaEvento()">🛒 Ver lista</button>
+      <button class="btn btn-success btn-sm" id="ev-ver-lista-btn" onclick="verListaEvento()">🛒 Ver lista</button>
       <button class="btn btn-primary btn-sm" onclick="guardarEvento()">Guardar</button>
     </div>
     <input type="hidden" id="ev-edit-id">
@@ -3395,12 +3404,29 @@ async function submitRsvp() {
   } catch(e) { toast('Error al guardar tu respuesta'); }
 }
 
+function getEvModo() {
+  return document.getElementById('ev-modo')?.value || 'manual';
+}
+
+function onEvModoChange() {
+  const modo = getEvModo();
+  const esInv = modo === 'invitacion';
+  document.getElementById('ev-personas-row').style.display = esInv ? 'none' : '';
+  document.getElementById('ev-ver-lista-btn').style.display = esInv ? 'none' : '';
+  document.getElementById('ev-opciones-sublabel').textContent = esInv
+    ? '— seleccioná los ítems que vas a ofrecer'
+    : '— editá las cantidades si querés';
+  recalcCantidades();
+}
+
 function onEvTemplateChange() {
   recalcCantidades();
 }
 
 function recalcCantidades() {
   const tplId = document.getElementById('ev-template').value;
+  const modo = getEvModo();
+  const esInv = modo === 'invitacion';
   const personas = parseInt(document.getElementById('ev-personas').value) || 4;
   const personasVeg = parseInt(document.getElementById('ev-personas-veg')?.value) || 0;
   const tpl = getTemplate(tplId);
@@ -3420,6 +3446,18 @@ function recalcCantidades() {
   const evRow = (op, key, nombre, cantPP, unidad, prevKey, isSubRow=false) => {
     const prev = existing[prevKey || key];
     const checked = prev ? prev.checked : op.def;
+    const vegTag = op.vegMode ? `<span style="font-size:10px;color:var(--cr-muted);margin-left:2px">${vegLabel[op.vegMode]||''}</span>` : '';
+    if (esInv) {
+      // Modo invitación: solo checkbox + nombre, sin cantidades
+      return `<div class="ev-opcion-row${isSubRow?' ev-sub-row':''}" data-op-id="${key}"${isSubRow?' style="margin-left:24px;background:var(--cr-bg)"':''}>
+        <input type="checkbox" ${checked?'checked':''}>
+        <span class="ev-opcion-label" style="${isSubRow?'font-size:13px':''}">
+          ${isSubRow?'↳ ':''}${esc(nombre)}
+          ${op.categoria?`<span class="badge" style="font-size:10px">${esc(op.categoria)}</span>`:''}
+          ${vegTag}
+        </span>
+      </div>`;
+    }
     const ppVal = (prev?.pp !== undefined && prev.pp !== '') ? prev.pp : (cantPP || '');
     const ppNum = parseFloat(ppVal) || 0;
     const efectivas = op.vegMode === 'noveg' ? personas - personasVeg : op.vegMode === 'veg' ? personasVeg : personas;
@@ -3433,7 +3471,6 @@ function recalcCantidades() {
       ? `<span style="font-size:12px;color:var(--cr-muted);min-width:60px;text-align:right">${op.fijaLabel}</span>`
       : `<input class="ev-cant-input" type="number" min="0" step="0.1" value="${cantVal}" data-op-id="${key}" placeholder="0"
           style="width:60px;padding:3px 5px;border-radius:6px;border:1px solid var(--cr-border);font-size:13px;background:var(--cr-card);color:var(--cr-text);text-align:right">`;
-    const vegTag = op.vegMode ? `<span style="font-size:10px;color:var(--cr-muted);margin-left:2px">${vegLabel[op.vegMode]||''}</span>` : '';
     return `<div class="ev-opcion-row${isSubRow?' ev-sub-row':''}" data-op-id="${key}"${isSubRow?' style="margin-left:24px;background:var(--cr-bg)"':''}>
       <input type="checkbox" ${checked?'checked':''}>
       <span class="ev-opcion-label" style="${isSubRow?'font-size:13px':''}">
@@ -3446,7 +3483,7 @@ function recalcCantidades() {
       <span class="ev-unidad">${esc(unidad||'')}</span>
     </div>`;
   };
-  container.innerHTML = (isEmp
+  container.innerHTML = (!esInv && isEmp
     ? `<div style="font-size:12px;color:var(--cr-muted);margin-bottom:6px;padding:6px 8px;background:var(--cr-bg);border-radius:6px">
         💡 Sugerencia: <strong>${Math.round(personas * 3.5)}</strong> empanadas total (≈3–4 por persona). Repartí entre los gustos.
        </div>` : '')
@@ -3500,6 +3537,7 @@ function openEventoModal(id=null) {
   document.getElementById('ev-personas').value = '4';
   document.getElementById('ev-personas-veg').value = '0';
   document.getElementById('ev-nombre').value = '';
+  document.getElementById('ev-modo').value = 'manual';
   let selTplId = EVENTO_TEMPLATES_DEFAULT[0].id;
   if (id) {
     const ev = S.eventos.find(e=>e.id===id); if(!ev) return;
@@ -3507,26 +3545,26 @@ function openEventoModal(id=null) {
     document.getElementById('ev-fecha').value = ev.fecha||'';
     document.getElementById('ev-personas').value = ev.personas||4;
     document.getElementById('ev-personas-veg').value = ev.personasVeg||0;
+    document.getElementById('ev-modo').value = ev.modo||'manual';
     selTplId = ev.templateId || selTplId;
   }
+  onEvModoChange(); // sync UI before populating
   populateTemplateSelect(selTplId);
+  recalcCantidades();
   if (id) {
     const ev = S.eventos.find(e=>e.id===id);
-    recalcCantidades();
-    if (ev.opcionesSeleccionadas || ev.cantidades) {
+    if (ev.opcionesSeleccionadas) {
       setTimeout(() => {
         const container = document.getElementById('ev-opciones');
         container.querySelectorAll('.ev-opcion-row').forEach(row => {
           const opId = row.dataset.opId;
           const cb = row.querySelector('input[type=checkbox]');
-          if (cb && ev.opcionesSeleccionadas) cb.checked = ev.opcionesSeleccionadas.includes(opId);
+          if (cb) cb.checked = ev.opcionesSeleccionadas.includes(opId);
           const ci = row.querySelector('.ev-cant-input');
           if (ci && ev.cantidades?.[opId] !== undefined) ci.value = ev.cantidades[opId];
         });
       }, 0);
     }
-  } else {
-    recalcCantidades();
   }
   document.getElementById('evento-modal').classList.add('open');
 }
@@ -3610,7 +3648,58 @@ function mostrarListaEvento(nombre, personas, opcionesSeleccionadas, cantidades,
 function abrirListaEvento(id) {
   const ev = S.eventos.find(e=>e.id===id); if(!ev) return;
   const tpl = getTemplate(ev.templateId);
-  mostrarListaEvento(ev.nombre, ev.personas, ev.opcionesSeleccionadas||[], ev.cantidades||{}, tpl);
+  const respuestas = (ev.respuestas||[]).filter(r => r.asiste === true);
+
+  if (ev.modo === 'invitacion' && ev.invitacion) {
+    const tipo = ev.invitacion.tipo;
+    const cantidades = {};
+    const sel = ev.opcionesSeleccionadas || [];
+
+    if (tipo === 'asistencia') {
+      // Calcular en base a cantPP × personas que van
+      const personas = respuestas.length || ev.personas || 0;
+      const personasVeg = respuestas.filter(r=>r.esVeg).length;
+      sel.forEach(opId => {
+        const isSubKey = opId.includes('::');
+        const realId = isSubKey ? opId.split('::')[0] : opId;
+        const op = tpl?.opciones.find(o=>o.id===realId);
+        const subOp = isSubKey ? op?.subIngredientes?.find(s=>s.id===opId.split('::')[1]) : null;
+        const opData = subOp || op;
+        if (!opData) return;
+        if (opData.fijaLabel) { cantidades[opId] = opData.fijaLabel; return; }
+        const efectivas = opData.vegMode==='noveg' ? personas-personasVeg : opData.vegMode==='veg' ? personasVeg : personas;
+        if (opData.cantPP > 0) cantidades[opId] = Math.round(opData.cantPP * efectivas * 10) / 10;
+      });
+      const personasTotal = personas;
+      mostrarListaEvento(ev.nombre, personasTotal, sel, cantidades, tpl);
+
+    } else if (tipo === 'menu-generico') {
+      // Cada ítem: contar cuántos lo pidieron × cantPP
+      sel.forEach(opId => {
+        const isSubKey = opId.includes('::');
+        const realId = isSubKey ? opId.split('::')[0] : opId;
+        const op = tpl?.opciones.find(o=>o.id===realId);
+        const subOp = isSubKey ? op?.subIngredientes?.find(s=>s.id===opId.split('::')[1]) : null;
+        const opData = subOp || op;
+        if (!opData) return;
+        if (opData.fijaLabel) { cantidades[opId] = opData.fijaLabel; return; }
+        const quieren = respuestas.filter(r => r.items?.[opId]).length;
+        if (opData.cantPP > 0 && quieren > 0) cantidades[opId] = Math.round(opData.cantPP * quieren * 10) / 10;
+      });
+      mostrarListaEvento(ev.nombre, respuestas.length, sel, cantidades, tpl);
+
+    } else {
+      // menu-personalizado: sumar cantidades ingresadas por cada persona
+      sel.forEach(opId => {
+        let total = 0;
+        respuestas.forEach(r => { const v = r.items?.[opId]; if (typeof v === 'number') total += v; });
+        if (total > 0) cantidades[opId] = Math.round(total * 10) / 10;
+      });
+      mostrarListaEvento(ev.nombre, respuestas.length, sel, cantidades, tpl);
+    }
+  } else {
+    mostrarListaEvento(ev.nombre, ev.personas, ev.opcionesSeleccionadas||[], ev.cantidades||{}, tpl);
+  }
 }
 
 function copiarListaEvento() {
@@ -3646,12 +3735,19 @@ function agregarListaEventoACompras() {
 async function guardarEvento() {
   const nombre = document.getElementById('ev-nombre').value.trim();
   if (!nombre) { toast('Ingresá el nombre del evento'); return; }
-  const { tplId, personas, opcionesSeleccionadas, cantidades } = getEventoFormData();
+  const { tplId, personas, personasVeg, opcionesSeleccionadas, cantidades } = getEventoFormData();
+  const modo = getEvModo();
   const editId = document.getElementById('ev-edit-id').value;
+  const existing = editId ? S.eventos.find(e=>e.id===editId) : null;
   const obj = {
     id: editId||uid(), tipo:'evento', nombre,
     fecha: document.getElementById('ev-fecha').value,
-    templateId: tplId, personas, personasVeg, opcionesSeleccionadas, cantidades,
+    templateId: tplId, modo,
+    personas: modo==='invitacion' ? (existing?.personas||0) : personas,
+    personasVeg: modo==='invitacion' ? (existing?.personasVeg||0) : personasVeg,
+    opcionesSeleccionadas, cantidades,
+    invitacion: existing?.invitacion || null,
+    respuestas: existing?.respuestas || [],
   };
   try {
     if (editId) {
