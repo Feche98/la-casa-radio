@@ -1103,6 +1103,28 @@
   </div>
 </div>
 
+<!-- EDITAR TEMPLATE MODAL -->
+<div class="modal-overlay" id="editar-template-modal">
+  <div class="modal" style="max-width:600px">
+    <h3 id="editar-tpl-title">Editar template</h3>
+    <div class="form-row">
+      <div class="form-group" style="flex:1"><label>Nombre</label><input type="text" id="etpl-nombre"></div>
+      <div class="form-group" style="flex:0 0 80px"><label>Emoji</label><input type="text" id="etpl-emoji" style="width:60px"></div>
+    </div>
+    <div class="form-group">
+      <label>Ingredientes</label>
+      <div id="etpl-opciones-list" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="etplAgregarOpcion()">+ Agregar ingrediente</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('editar-template-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarEditarTemplate()">Guardar</button>
+    </div>
+    <input type="hidden" id="etpl-original-id">
+    <input type="hidden" id="etpl-tipo">
+  </div>
+</div>
+
 <div id="toast"></div>
 <div id="loading" style="display:none;position:fixed;inset:0;background:rgba(26,26,26,.88);z-index:9999;align-items:center;justify-content:center;color:white;font-size:1rem;gap:14px;flex-direction:column">
   <div style="width:38px;height:38px;border:3px solid rgba(255,255,255,.25);border-top-color:#f5d400;border-radius:50%;animation:spin .8s linear infinite"></div>
@@ -2098,7 +2120,8 @@ function agregarItemLista() {
 }
 
 function itemListaTexto(item) {
-  const cant = item.cantidad ? ` x${item.cantidad}` : '';
+  const unidad = item.unidad || S.stock.find(s=>s.id===item.stockId)?.unidad || '';
+  const cant = item.cantidad ? ` x${item.cantidad}${unidad ? ' '+unidad : ''}` : '';
   return item.texto + cant;
 }
 
@@ -2867,8 +2890,11 @@ function renderGastos() {
 // ── EVENTOS ───────────────────────────────────────────────────
 
 function getAllTemplates() {
-  const custom = S.eventos.filter(e => e.tipo === 'template');
-  return [...EVENTO_TEMPLATES_DEFAULT, ...custom];
+  const overrides = {};
+  S.eventos.filter(e => e.tipo === 'template-override').forEach(e => overrides[e.originalId] = e);
+  const customs = S.eventos.filter(e => e.tipo === 'template');
+  const defaults = EVENTO_TEMPLATES_DEFAULT.map(t => overrides[t.id] ? { ...overrides[t.id], id: t.id } : t);
+  return [...defaults, ...customs];
 }
 
 function getTemplate(id) {
@@ -2936,18 +2962,43 @@ function recalcCantidades(keepExisting=false) {
        </div>` : '')
     + tpl.opciones.map(op => {
     const prev = existing[op.id];
+    // — Opción con sub-ingredientes —
+    if (op.subIngredientes?.length) {
+      const parentChecked = prev ? prev.checked : op.def;
+      const subsHTML = op.subIngredientes.map((sub) => {
+        const subKey = op.id + '::' + sub.id;
+        const subPrev = existing[subKey];
+        const subChecked = subPrev ? subPrev.checked : (sub.def !== false);
+        const subPP = (subPrev?.pp !== undefined && subPrev.pp !== '') ? subPrev.pp : (sub.cantPP || '');
+        const subPPNum = parseFloat(subPP) || 0;
+        const subCant = subPPNum > 0 ? Math.round(subPPNum * personas * 10)/10 : (subPrev?.cant ?? '');
+        return `<div class="ev-opcion-row ev-sub-row" data-op-id="${subKey}" style="margin-left:28px;background:var(--cr-bg)">
+          <input type="checkbox" ${subChecked?'checked':''}>
+          <span class="ev-opcion-label" style="font-size:13px">↳ ${esc(sub.nombre)}</span>
+          <input class="ev-pp-input" type="number" min="0" step="0.01" value="${subPP}"
+            title="Cantidad por persona" placeholder="0"
+            style="width:50px;padding:3px 5px;border-radius:6px;border:1px solid var(--cr-border);font-size:12px;background:var(--cr-card);color:var(--cr-muted);text-align:center"
+            oninput="onEvPpChange(this)">
+          <span style="font-size:11px;color:var(--cr-muted)">/pp</span>
+          <input class="ev-cant-input" type="number" min="0" step="0.1" value="${subCant}" data-op-id="${subKey}" placeholder="0">
+          <span class="ev-unidad">${esc(sub.unidad||'')}</span>
+        </div>`;
+      }).join('');
+      return `<div class="ev-opcion-row ev-parent-row" data-op-id="${op.id}" data-has-subs="1">
+        <input type="checkbox" ${parentChecked?'checked':''} onchange="toggleEvParent(this,'${op.id}')">
+        <span class="ev-opcion-label" style="font-weight:600">${esc(op.nombre)}</span>
+        <span style="font-size:11px;color:var(--cr-muted)">(${op.subIngredientes.length} ingredientes)</span>
+      </div>${subsHTML}`;
+    }
+    // — Opción normal —
     const checked = prev ? prev.checked : op.def;
-    // per-person rate: from prev or template default
     const ppVal = (prev?.pp !== undefined && prev.pp !== '') ? prev.pp : (op.cantPP || '');
-    // total: recalc from pp×personas, or keep manual entry
     let cantVal;
     if (op.fijaLabel) {
       cantVal = null;
     } else if (op.cantPP === 0 && !isEmp) {
-      // fixed item (carbon, sal) — keep manual
       cantVal = prev?.cant ?? '';
     } else {
-      // recalc from pp input if personas changed, keep prev total otherwise if keepExisting
       const ppNum = parseFloat(ppVal) || 0;
       cantVal = ppNum > 0 ? Math.round(ppNum * personas * 10) / 10 : (prev?.cant ?? '');
     }
@@ -2968,6 +3019,17 @@ function recalcCantidades(keepExisting=false) {
       <span class="ev-unidad">${esc(op.unidad||'')}</span>
     </div>`;
   }).join('');
+}
+
+function toggleEvParent(cb, parentOpId) {
+  const container = document.getElementById('ev-opciones');
+  const checked = cb.checked;
+  container.querySelectorAll('.ev-sub-row').forEach(row => {
+    if (row.dataset.opId?.startsWith(parentOpId + '::')) {
+      const subCb = row.querySelector('input[type=checkbox]');
+      if (subCb) subCb.checked = checked;
+    }
+  });
 }
 
 function onEvPpChange(input) {
@@ -3030,13 +3092,17 @@ function getEventoFormData() {
     const opId = row.dataset.opId;
     const cb = row.querySelector('input[type=checkbox]');
     const ci = row.querySelector('.ev-cant-input');
-    if (cb?.checked) {
-      opcionesSeleccionadas.push(opId);
-      if (ci) cantidades[opId] = parseFloat(ci.value)||0;
-      else {
-        const op = tpl?.opciones.find(o=>o.id===opId);
-        if (op?.fijaLabel) cantidades[opId] = op.fijaLabel;
-      }
+    // Parent row with subs: skip — children handle it
+    if (row.dataset.hasSubs) return;
+    if (!cb?.checked) return;
+    opcionesSeleccionadas.push(opId);
+    if (ci) {
+      cantidades[opId] = parseFloat(ci.value)||0;
+    } else {
+      // fijaLabel: look up in template (handle sub-ingredient case too)
+      const realOpId = opId.includes('::') ? opId.split('::')[0] : opId;
+      const op = tpl?.opciones.find(o=>o.id===realOpId);
+      if (op?.fijaLabel) cantidades[opId] = op.fijaLabel;
     }
   });
   return { tplId, tpl, personas, opcionesSeleccionadas, cantidades };
@@ -3051,9 +3117,16 @@ function verListaEvento() {
 function mostrarListaEvento(nombre, personas, opcionesSeleccionadas, cantidades, tpl) {
   document.getElementById('evlista-titulo').textContent = `🛒 ${nombre} (${personas} personas)`;
   const items = opcionesSeleccionadas.map(opId => {
-    const op = tpl?.opciones.find(o=>o.id===opId);
     const cant = cantidades[opId];
     const cantStr = typeof cant === 'string' ? cant : (cant ? cant : '');
+    if (opId.includes('::')) {
+      // sub-ingredient
+      const [parentId, subId] = opId.split('::');
+      const parentOp = tpl?.opciones.find(o=>o.id===parentId);
+      const sub = parentOp?.subIngredientes?.find(s=>s.id===subId);
+      return { nombre: (sub?.nombre||subId), cant: cantStr, unidad: sub?.unidad||'', precio: 0, categoria: parentOp?.categoria||'', isSub: true, parentNombre: parentOp?.nombre||'' };
+    }
+    const op = tpl?.opciones.find(o=>o.id===opId);
     return { nombre: op?.nombre||opId, cant: cantStr, unidad: op?.unidad||'', precio: op?.precio||0, categoria: op?.categoria||'' };
   });
   // Total price if items have prices (e.g. Quinto Criollo)
@@ -3073,7 +3146,9 @@ function mostrarListaEvento(nombre, personas, opcionesSeleccionadas, cantidades,
     });
   } else {
     html = items.map(it =>
-      `<div class="evlista-item"><span>${esc(it.nombre)}</span><span style="font-weight:600">${it.cant ? it.cant+' '+it.unidad : it.unidad||'—'}</span></div>`
+      it.isSub
+        ? `<div class="evlista-item" style="margin-left:16px;font-size:13px;color:var(--cr-muted)"><span>↳ ${esc(it.nombre)}</span><span style="font-weight:600">${it.cant ? it.cant+' '+it.unidad : it.unidad||'—'}</span></div>`
+        : `<div class="evlista-item"><span>${esc(it.nombre)}</span><span style="font-weight:600">${it.cant ? it.cant+' '+it.unidad : it.unidad||'—'}</span></div>`
     ).join('');
   }
   if (totalPrecio > 0) html += `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--cr-border);display:flex;justify-content:space-between;font-weight:700"><span>Total estimado</span><span>$${totalPrecio.toLocaleString('es-AR')}</span></div>`;
@@ -3091,7 +3166,7 @@ function abrirListaEvento(id) {
 function copiarListaEvento() {
   const { nombre, items } = window._eventoListaActual || {};
   if (!items?.length) return;
-  navigator.clipboard.writeText(`🛒 ${nombre}\n\n`+items.map(i=>`• ${i.nombre}${i.cant?' — '+i.cant+' '+i.unidad:''}`).join('\n')).then(()=>toast('¡Lista copiada!'));
+  navigator.clipboard.writeText(`🛒 ${nombre}\n\n`+items.map(i=>i.isSub?`  ↳ ${i.nombre}${i.cant?' — '+i.cant+' '+i.unidad:''}`:`• ${i.nombre}${i.cant?' — '+i.cant+' '+i.unidad:''}`).join('\n')).then(()=>toast('¡Lista copiada!'));
 }
 
 function agregarListaEventoACompras() {
@@ -3142,22 +3217,20 @@ function openTemplateModal() {
 }
 
 function renderTemplateList() {
-  const custom = S.eventos.filter(e=>e.tipo==='template');
+  const overrideIds = new Set(S.eventos.filter(e=>e.tipo==='template-override').map(e=>e.originalId));
   const el = document.getElementById('template-list');
-  const defaultHtml = EVENTO_TEMPLATES_DEFAULT.map(t =>
-    `<div style="display:flex;align-items:center;gap:8px;padding:.5rem 0;border-bottom:.5px solid var(--cr-border)">
-      <span style="font-size:1.2rem">${t.emoji}</span>
+  const allTpls = getAllTemplates();
+  el.innerHTML = allTpls.map(t => {
+    const isDefault = EVENTO_TEMPLATES_DEFAULT.some(d=>d.id===t.id);
+    const isOverridden = overrideIds.has(t.id);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:.5rem 0;border-bottom:.5px solid var(--cr-border)">
+      <span style="font-size:1.2rem">${t.emoji||'📋'}</span>
       <span style="flex:1;font-size:14px;font-weight:500">${esc(t.nombre)}</span>
-      <span class="badge">Predeterminado</span>
-    </div>`).join('');
-  const customHtml = custom.length
-    ? custom.map(t => `<div style="display:flex;align-items:center;gap:8px;padding:.5rem 0;border-bottom:.5px solid var(--cr-border)">
-        <span style="font-size:1.2rem">${t.emoji||'📋'}</span>
-        <span style="flex:1;font-size:14px;font-weight:500">${esc(t.nombre)}</span>
-        <button class="btn-icon" onclick="eliminarTemplate('${t.id}')">🗑</button>
-      </div>`).join('')
-    : '';
-  el.innerHTML = defaultHtml + customHtml;
+      ${isDefault ? `<span class="badge">${isOverridden?'Editado':'Predeterminado'}</span>` : ''}
+      <button class="btn btn-sm btn-ghost" onclick="openEditarTemplate('${t.id}')">✏️ Editar</button>
+      ${!isDefault ? `<button class="btn-icon" onclick="eliminarTemplate('${t.id}')">🗑</button>` : ''}
+    </div>`;
+  }).join('');
 }
 
 function openNuevoTemplate() {
@@ -3183,6 +3256,108 @@ async function guardarNuevoTemplate() {
     document.getElementById('nuevo-template-form').style.display='none';
     toast('¡Template creado!');
   } catch(e) { toast('Error al guardar'); }
+}
+
+let etplOpciones = [];
+
+function openEditarTemplate(id) {
+  const tpl = getAllTemplates().find(t => t.id === id);
+  if (!tpl) return;
+  document.getElementById('etpl-original-id').value = id;
+  document.getElementById('etpl-tipo').value = tpl.tipo || '';
+  document.getElementById('etpl-nombre').value = tpl.nombre || '';
+  document.getElementById('etpl-emoji').value = tpl.emoji || '';
+  etplOpciones = (tpl.opciones || []).map(op => ({ ...op, subIngredientes: op.subIngredientes ? op.subIngredientes.map(s=>({...s})) : undefined }));
+  renderEtplOpciones();
+  document.getElementById('editar-tpl-title').textContent = `Editar: ${tpl.nombre}`;
+  document.getElementById('editar-template-modal').classList.add('open');
+}
+
+function renderEtplOpciones() {
+  const el = document.getElementById('etpl-opciones-list');
+  el.innerHTML = etplOpciones.map((op, i) => `
+    <div style="display:flex;gap:6px;align-items:center;background:var(--cr-bg);padding:6px 8px;border-radius:8px;flex-wrap:wrap">
+      <input type="checkbox" ${op.def?'checked':''} title="Activo por defecto" onchange="etplOpciones[${i}].def=this.checked" style="width:16px;height:16px">
+      <input type="text" value="${esc(op.nombre||'')}" placeholder="Nombre" style="flex:1;min-width:100px;padding:4px 8px;border-radius:6px;border:1px solid var(--cr-border);font-size:13px;background:var(--cr-card);color:var(--cr-text)"
+        onchange="etplOpciones[${i}].nombre=this.value">
+      <input type="number" value="${op.cantPP||''}" placeholder="cant/pp" min="0" step="0.01" style="width:70px;padding:4px 8px;border-radius:6px;border:1px solid var(--cr-border);font-size:13px;background:var(--cr-card);color:var(--cr-text)"
+        title="Cantidad por persona" onchange="etplOpciones[${i}].cantPP=parseFloat(this.value)||0">
+      <select style="padding:4px 6px;border-radius:6px;border:1px solid var(--cr-border);font-size:13px;background:var(--cr-card);color:var(--cr-text)"
+        onchange="etplOpciones[${i}].unidad=this.value">
+        ${['','u','kg','g','L','ml','paq','docena','lata','atado','sobre','botella'].map(u=>`<option value="${u}" ${op.unidad===u?'selected':''}>${u||'— unidad —'}</option>`).join('')}
+      </select>
+      <input type="text" value="${esc(op.fijaLabel||'')}" placeholder="label fijo (opcional)" style="width:100px;padding:4px 8px;border-radius:6px;border:1px solid var(--cr-border);font-size:12px;background:var(--cr-card);color:var(--cr-muted)"
+        title="Si ponés un label fijo (ej: '1 sobre'), no se calcula por persona" onchange="etplOpciones[${i}].fijaLabel=this.value||undefined">
+      <button class="btn-icon" onclick="etplOpciones.splice(${i},1);renderEtplOpciones()" title="Quitar">✕</button>
+    </div>
+    ${op.subIngredientes?.length ? renderEtplSubIngredientes(i) : ''}
+  `).join('');
+}
+
+function renderEtplSubIngredientes(parentIdx) {
+  const subs = etplOpciones[parentIdx].subIngredientes || [];
+  return `<div style="margin-left:24px;display:flex;flex-direction:column;gap:4px">
+    ${subs.map((sub, si) => `
+      <div style="display:flex;gap:6px;align-items:center;background:var(--cr-surface,#f8f8f6);padding:4px 8px;border-radius:6px;flex-wrap:wrap">
+        <span style="color:var(--cr-muted);font-size:12px">↳</span>
+        <input type="text" value="${esc(sub.nombre||'')}" placeholder="Sub-ingrediente" style="flex:1;min-width:80px;padding:3px 6px;border-radius:6px;border:1px solid var(--cr-border);font-size:12px;background:var(--cr-card);color:var(--cr-text)"
+          onchange="etplOpciones[${parentIdx}].subIngredientes[${si}].nombre=this.value">
+        <input type="number" value="${sub.cantPP||''}" placeholder="cant/pp" min="0" step="0.01" style="width:65px;padding:3px 6px;border-radius:6px;border:1px solid var(--cr-border);font-size:12px;background:var(--cr-card);color:var(--cr-text)"
+          onchange="etplOpciones[${parentIdx}].subIngredientes[${si}].cantPP=parseFloat(this.value)||0">
+        <select style="padding:3px 5px;border-radius:6px;border:1px solid var(--cr-border);font-size:12px;background:var(--cr-card);color:var(--cr-text)"
+          onchange="etplOpciones[${parentIdx}].subIngredientes[${si}].unidad=this.value">
+          ${['','u','kg','g','L','ml','paq','docena','lata','sobre'].map(u=>`<option value="${u}" ${sub.unidad===u?'selected':''}>${u||'— u —'}</option>`).join('')}
+        </select>
+        <button class="btn-icon" onclick="etplOpciones[${parentIdx}].subIngredientes.splice(${si},1);renderEtplOpciones()" title="Quitar">✕</button>
+      </div>`).join('')}
+    <button class="btn btn-ghost btn-sm" style="font-size:11px;align-self:flex-start" onclick="etplAgregarSubIngrediente(${parentIdx})">+ sub-ingrediente</button>
+  </div>`;
+}
+
+function etplAgregarOpcion() {
+  etplOpciones.push({ id: 'op-'+Date.now(), nombre: '', cantPP: 0, unidad: 'u', def: true });
+  renderEtplOpciones();
+}
+
+function etplAgregarSubIngrediente(parentIdx) {
+  if (!etplOpciones[parentIdx].subIngredientes) etplOpciones[parentIdx].subIngredientes = [];
+  etplOpciones[parentIdx].subIngredientes.push({ id: 'sub-'+Date.now(), nombre: '', cantPP: 0, unidad: 'u', def: true });
+  renderEtplOpciones();
+}
+
+async function guardarEditarTemplate() {
+  const originalId = document.getElementById('etpl-original-id').value;
+  const nombre = document.getElementById('etpl-nombre').value.trim();
+  if (!nombre) { toast('Ingresá un nombre'); return; }
+  const tipo = document.getElementById('etpl-tipo').value;
+  const opciones = etplOpciones.filter(op => op.nombre.trim());
+  const isDefault = EVENTO_TEMPLATES_DEFAULT.some(t => t.id === originalId);
+  if (isDefault) {
+    const existing = S.eventos.find(e => e.tipo === 'template-override' && e.originalId === originalId);
+    const obj = {
+      id: existing?.id || uid(),
+      tipo: 'template-override',
+      originalId,
+      nombre,
+      emoji: document.getElementById('etpl-emoji').value.trim() || '📋',
+      tipo_evento: tipo,
+      opciones,
+    };
+    try {
+      if (existing) { await dbUpdate('eventos', obj); const i = S.eventos.findIndex(e=>e.id===existing.id); if(i!==-1) S.eventos[i]=obj; }
+      else { await dbInsert('eventos', obj); S.eventos.push(obj); }
+      closeModal('editar-template-modal'); renderTemplateList(); toast('¡Template actualizado!');
+    } catch(e) { toast('Error al guardar'); }
+  } else {
+    const existing = S.eventos.find(e => e.id === originalId);
+    if (!existing) return;
+    const obj = { ...existing, nombre, emoji: document.getElementById('etpl-emoji').value.trim() || '📋', opciones };
+    try {
+      await dbUpdate('eventos', obj);
+      const i = S.eventos.findIndex(e=>e.id===originalId); if(i!==-1) S.eventos[i]=obj;
+      closeModal('editar-template-modal'); renderTemplateList(); toast('¡Template actualizado!');
+    } catch(e) { toast('Error al guardar'); }
+  }
 }
 
 async function eliminarTemplate(id) {
