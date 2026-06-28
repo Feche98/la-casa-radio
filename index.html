@@ -1228,6 +1228,64 @@ const EVENTO_TEMPLATES_DEFAULT = [
       { id: 'cu-velas',  nombre: 'Velas',              cantPP: 0,   unidad: 'u',   def: true, fijaLabel: 'según la edad' },
     ]
   },
+  {
+    id: 'tpl-empanadas', nombre: 'Empanadas', emoji: '🥟', tipo: 'empanadas',
+    opciones: [
+      { id: 'em-criolla',   nombre: 'Criolla',            cantPP: 0, unidad: 'u', def: true },
+      { id: 'em-humita',    nombre: 'Humita',             cantPP: 0, unidad: 'u', def: true },
+      { id: 'em-jyq',       nombre: 'Jamón y queso',      cantPP: 0, unidad: 'u', def: true },
+      { id: 'em-carne',     nombre: 'Carne suave',        cantPP: 0, unidad: 'u', def: true },
+      { id: 'em-cpic',      nombre: 'Carne picante',      cantPP: 0, unidad: 'u', def: false },
+      { id: 'em-pollo',     nombre: 'Pollo',              cantPP: 0, unidad: 'u', def: true },
+      { id: 'em-verdura',   nombre: 'Verdura',            cantPP: 0, unidad: 'u', def: true },
+      { id: 'em-caprese',   nombre: 'Caprese',            cantPP: 0, unidad: 'u', def: false },
+      { id: 'em-esp',       nombre: 'Espinaca',           cantPP: 0, unidad: 'u', def: false },
+      { id: 'em-4q',        nombre: '4 quesos',           cantPP: 0, unidad: 'u', def: false },
+      { id: 'em-salteña',   nombre: 'Salteña',            cantPP: 0, unidad: 'u', def: false },
+      { id: 'em-qyc',       nombre: 'Queso y cebolla',    cantPP: 0, unidad: 'u', def: false },
+    ]
+  },
+  {
+    id: 'tpl-quinto', nombre: 'Quinto Criollo', emoji: '🏠', tipo: 'empanadas',
+    opciones: [
+      // Empanadas $1400
+      { id: 'qc-salteña',   nombre: 'Salteña',            cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-salpic',    nombre: 'Salteña picante',    cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-criolla',   nombre: 'Criolla',            cantPP: 0, unidad: 'u', def: true,  categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-verdura',   nombre: 'Verdura',            cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-humita',    nombre: 'Humita',             cantPP: 0, unidad: 'u', def: true,  categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-jyq',       nombre: 'Jamón y queso',      cantPP: 0, unidad: 'u', def: true,  categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-cebolla',   nombre: 'Cebolla',            cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-roquefort', nombre: 'Roquefort',          cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-qyp',       nombre: 'Queso y panceta',    cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-napo',      nombre: 'Napo al oleo',       cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-momo',      nombre: 'Momo a la parisién', cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-caprece',   nombre: 'Caprece',            cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-fucula',    nombre: 'Fucula',             cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-cyp',       nombre: 'Ciruela y panceta',  cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-calabresa', nombre: 'Calabresa',          cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-pollov',    nombre: 'Pollo al verdeo',    cantPP: 0, unidad: 'u', def: true,  categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-polloch',   nombre: 'Pollo al champiñón', cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-pollocy',   nombre: 'Pollo al curry',     cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-pollo',     nombre: 'Pollo',              cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-cheddar',   nombre: 'Super cheddar',      cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-verdrus',   nombre: 'Verdura rústica',    cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-especial',  nombre: 'Especial quinto',    cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-tropical',  nombre: 'Tropical',           cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-halloween', nombre: 'Hallowen',           cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-4quesos',   nombre: '4 quesos',           cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-manhattan', nombre: 'Manhattan',          cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-dandy',     nombre: 'Dandy',              cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      { id: 'qc-goltz',     nombre: 'Goltz',              cantPP: 0, unidad: 'u', def: false, categoria: 'Empanada', precio: 1400 },
+      // Tartas $2800
+      { id: 'qc-t-jqto',   nombre: 'Jamón queso tomate y orégano', cantPP: 0, unidad: 'u', def: false, categoria: 'Tarta', precio: 2800 },
+      { id: 'qc-t-esp',    nombre: 'Espinaca',            cantPP: 0, unidad: 'u', def: false, categoria: 'Tarta', precio: 2800 },
+      { id: 'qc-t-pv',     nombre: 'Pollo al verdeo',     cantPP: 0, unidad: 'u', def: false, categoria: 'Tarta', precio: 2800 },
+      { id: 'qc-t-pch',    nombre: 'Pollo al champiñones',cantPP: 0, unidad: 'u', def: false, categoria: 'Tarta', precio: 2800 },
+      { id: 'qc-t-cap',    nombre: 'Caprese',             cantPP: 0, unidad: 'u', def: false, categoria: 'Tarta', precio: 2800 },
+      { id: 'qc-t-veg',    nombre: 'Vegetales rústicos',  cantPP: 0, unidad: 'u', def: false, categoria: 'Tarta', precio: 2800 },
+    ]
+  },
 ];
 
 async function enviarEmail(to_email, titulo, cuerpo) {
@@ -1821,7 +1879,7 @@ function sugerenciasCompra(stockId, modo='modal') {
 
 function openRegistrarCompra() {
   const pendientes = S.stock.filter(s => s.estado === 'bajo' || s.estado === 'critico');
-  compraItems = pendientes.map(s => ({ id: s.id, nombre: s.nombre, cat: s.cat, importancia: s.importancia || 'media', checked: true, cantidad: '' }));
+  compraItems = pendientes.map(s => ({ id: s.id, nombre: s.nombre, cat: s.cat, importancia: s.importancia || 'media', unidad: s.unidad||'', checked: true, cantidad: '' }));
   const el = document.getElementById('compra-items');
   const empty = document.getElementById('compra-empty');
   if (!compraItems.length) {
@@ -1855,6 +1913,7 @@ function renderCompraItems() {
         <input type="number" min="0" step="any" placeholder="Cant." value="${item.cantidad}"
           oninput="compraItems[${i}].cantidad=this.value"
           style="width:70px;font-size:13px;background:var(--cr-bg);border:1px solid var(--cr-border);border-radius:6px;padding:4px 8px;color:var(--cr-text)">
+        ${item.unidad ? `<span style="font-size:12px;color:var(--cr-muted);min-width:28px">${esc(item.unidad)}</span>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -2007,21 +2066,24 @@ function renderListaItems() {
   const el=document.getElementById('lista-items');
   if (!listaItems.length) { el.innerHTML='<p class="text-muted" style="text-align:center;padding:1.5rem 0">Todo el stock está completo. Podés agregar ítems extra abajo.</p>'; return; }
   el.innerHTML=listaItems.map((item,i)=>{
+    const stockItem = item.stockId ? S.stock.find(s=>s.id===item.stockId) : null;
+    const unidad = item.unidad || stockItem?.unidad || '';
     const hist = item.stockId ? historialItem(item.stockId) : [];
     const ult = hist[0];
     const dias = ult ? diasDesde(ult.fecha) : null;
     let hint = '';
-    if (ult && ult.cantidad && dias < 14) hint = `<span style="font-size:11px;color:#d97706" title="Se acabó en ${dias} días, conviene comprar más">⚠️ comprar más que antes</span>`;
-    else if (ult && ult.cantidad) hint = `<span style="font-size:11px;color:var(--cr-muted)">última vez: ${ult.cantidad}</span>`;
+    if (ult && ult.cantidad && dias < 14) hint = `<span style="font-size:11px;color:#d97706" title="Se acabó en ${dias} días, conviene comprar más">⚠️ más que antes</span>`;
+    else if (ult && ult.cantidad) hint = `<span style="font-size:11px;color:var(--cr-muted)">última vez: ${ult.cantidad}${unidad?' '+unidad:''}</span>`;
     return `<div class="compra-item" style="flex-wrap:wrap;gap:6px">
       <input type="checkbox" id="ci${i}" ${item.checked?'checked':''} onchange="listaItems[${i}].checked=this.checked;renderListaItems()">
       <label for="ci${i}" style="flex:1;min-width:80px;${item.checked?'':'text-decoration:line-through;color:var(--cr-muted)'}">${esc(item.texto)}</label>
       ${item.auto?`<span class="compra-badge-${item.nivel}">${item.nivel==='critico'?'🔴 Crítico':'🟡 Bajo'}</span>`:''}
       <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
         ${hint}
-        <input type="number" min="0" step="1" placeholder="cant." value="${item.cantidad||''}"
+        <input type="number" min="0" step="0.1" placeholder="cant." value="${item.cantidad||''}"
           style="width:64px;padding:3px 6px;border-radius:6px;border:1px solid var(--cr-border);font-size:13px;background:var(--cr-bg);color:var(--cr-text)"
           onchange="listaItems[${i}].cantidad=this.value?Number(this.value):''">
+        ${unidad?`<span style="font-size:12px;color:var(--cr-muted);min-width:24px">${esc(unidad)}</span>`:''}
         <button class="btn-icon" onclick="listaItems.splice(${i},1);renderListaItems()" title="Quitar">✕</button>
       </div>
     </div>`;
@@ -2851,34 +2913,69 @@ function onEvTemplateChange() {
   recalcCantidades();
 }
 
-function recalcCantidades() {
+function recalcCantidades(keepExisting=false) {
   const tplId = document.getElementById('ev-template').value;
   const personas = parseInt(document.getElementById('ev-personas').value) || 4;
   const tpl = getTemplate(tplId);
   const container = document.getElementById('ev-opciones');
   if (!tpl) { container.innerHTML = ''; return; }
+  // Preserve checked state, per-person rate and total when recalculating
   const existing = {};
   container.querySelectorAll('.ev-opcion-row').forEach(row => {
     const id = row.dataset.opId;
     const cb = row.querySelector('input[type=checkbox]');
+    const pp = row.querySelector('.ev-pp-input');
     const ci = row.querySelector('.ev-cant-input');
-    if (id) existing[id] = { checked: cb?.checked, cant: ci?.value };
+    if (id) existing[id] = { checked: cb?.checked, pp: pp?.value, cant: ci?.value };
   });
-  container.innerHTML = tpl.opciones.map(op => {
+  // Show total empanadas hint for empanada-type templates
+  const isEmp = tpl.tipo === 'empanadas';
+  container.innerHTML = (isEmp
+    ? `<div style="font-size:12px;color:var(--cr-muted);margin-bottom:6px;padding:6px 8px;background:var(--cr-bg);border-radius:6px">
+        💡 Sugerencia: <strong>${Math.round(personas * 3.5)}</strong> empanadas total (≈3–4 por persona). Repartí entre los gustos que quieras.
+       </div>` : '')
+    + tpl.opciones.map(op => {
     const prev = existing[op.id];
     const checked = prev ? prev.checked : op.def;
-    const calcedCant = calcCant(op, personas);
-    const cant = prev?.cant !== undefined && prev.cant !== '' ? prev.cant : (calcedCant ?? '');
+    // per-person rate: from prev or template default
+    const ppVal = (prev?.pp !== undefined && prev.pp !== '') ? prev.pp : (op.cantPP || '');
+    // total: recalc from pp×personas, or keep manual entry
+    let cantVal;
+    if (op.fijaLabel) {
+      cantVal = null;
+    } else if (op.cantPP === 0 && !isEmp) {
+      // fixed item (carbon, sal) — keep manual
+      cantVal = prev?.cant ?? '';
+    } else {
+      // recalc from pp input if personas changed, keep prev total otherwise if keepExisting
+      const ppNum = parseFloat(ppVal) || 0;
+      cantVal = ppNum > 0 ? Math.round(ppNum * personas * 10) / 10 : (prev?.cant ?? '');
+    }
+    const ppInput = op.fijaLabel || op.cantPP === 0 ? '' :
+      `<input class="ev-pp-input" type="number" min="0" step="0.01" value="${ppVal}"
+        title="Cantidad por persona" placeholder="0"
+        style="width:50px;padding:3px 5px;border-radius:6px;border:1px solid var(--cr-border);font-size:12px;background:var(--cr-bg);color:var(--cr-muted);text-align:center"
+        oninput="onEvPpChange(this)">
+       <span style="font-size:11px;color:var(--cr-muted)">/pp</span>`;
     const cantDisplay = op.fijaLabel
       ? `<span style="font-size:12px;color:var(--cr-muted);min-width:70px;text-align:right">${op.fijaLabel}</span>`
-      : `<input class="ev-cant-input" type="number" min="0" step="0.1" value="${cant}" data-op-id="${op.id}">`;
+      : `<input class="ev-cant-input" type="number" min="0" step="0.1" value="${cantVal}" data-op-id="${op.id}" placeholder="0">`;
     return `<div class="ev-opcion-row" data-op-id="${op.id}">
       <input type="checkbox" ${checked?'checked':''}>
-      <span class="ev-opcion-label">${esc(op.nombre)}</span>
+      <span class="ev-opcion-label">${esc(op.nombre)}${op.precio?` <span style="font-size:11px;color:var(--cr-muted)">$${op.precio}</span>`:''}${op.categoria?` <span class="badge" style="font-size:10px">${esc(op.categoria)}</span>`:''}</span>
+      ${ppInput}
       ${cantDisplay}
       <span class="ev-unidad">${esc(op.unidad||'')}</span>
     </div>`;
   }).join('');
+}
+
+function onEvPpChange(input) {
+  const row = input.closest('.ev-opcion-row');
+  const ci = row?.querySelector('.ev-cant-input'); if (!ci) return;
+  const personas = parseInt(document.getElementById('ev-personas').value) || 4;
+  const pp = parseFloat(input.value) || 0;
+  if (pp > 0) ci.value = Math.round(pp * personas * 10) / 10;
 }
 
 function populateTemplateSelect(selectedId) {
@@ -2957,11 +3054,30 @@ function mostrarListaEvento(nombre, personas, opcionesSeleccionadas, cantidades,
     const op = tpl?.opciones.find(o=>o.id===opId);
     const cant = cantidades[opId];
     const cantStr = typeof cant === 'string' ? cant : (cant ? cant : '');
-    return { nombre: op?.nombre||opId, cant: cantStr, unidad: op?.unidad||'' };
+    return { nombre: op?.nombre||opId, cant: cantStr, unidad: op?.unidad||'', precio: op?.precio||0, categoria: op?.categoria||'' };
   });
-  document.getElementById('evlista-items').innerHTML = items.map(it =>
-    `<div class="evlista-item"><span>${esc(it.nombre)}</span><span style="font-weight:600">${it.cant ? it.cant+' '+it.unidad : it.unidad||'—'}</span></div>`
-  ).join('');
+  // Total price if items have prices (e.g. Quinto Criollo)
+  const totalPrecio = items.reduce((sum, it) => sum + (it.precio && it.cant ? it.precio * Number(it.cant) : 0), 0);
+  const byCategoria = {};
+  items.forEach(it => { if(it.categoria) { byCategoria[it.categoria] = byCategoria[it.categoria]||[]; byCategoria[it.categoria].push(it); } });
+  const hasCats = Object.keys(byCategoria).length > 0;
+  let html = '';
+  if (hasCats) {
+    Object.entries(byCategoria).forEach(([cat, catItems]) => {
+      const catTotal = catItems.reduce((s,i)=>s+(i.precio&&i.cant?i.precio*Number(i.cant):0),0);
+      html += `<div style="font-size:11px;font-weight:700;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px">${esc(cat)}${catTotal?` — $${catTotal.toLocaleString('es-AR')}`:''}</div>`;
+      catItems.forEach(it => {
+        const precioUnit = it.precio && it.cant ? ` <span style="font-size:11px;color:var(--cr-muted)">($${(it.precio*Number(it.cant)).toLocaleString('es-AR')})</span>` : '';
+        html += `<div class="evlista-item"><span>${esc(it.nombre)}${precioUnit}</span><span style="font-weight:600">${it.cant ? it.cant+' '+it.unidad : '—'}</span></div>`;
+      });
+    });
+  } else {
+    html = items.map(it =>
+      `<div class="evlista-item"><span>${esc(it.nombre)}</span><span style="font-weight:600">${it.cant ? it.cant+' '+it.unidad : it.unidad||'—'}</span></div>`
+    ).join('');
+  }
+  if (totalPrecio > 0) html += `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--cr-border);display:flex;justify-content:space-between;font-weight:700"><span>Total estimado</span><span>$${totalPrecio.toLocaleString('es-AR')}</span></div>`;
+  document.getElementById('evlista-items').innerHTML = html;
   window._eventoListaActual = { nombre, items };
   document.getElementById('evento-lista-modal').classList.add('open');
 }
