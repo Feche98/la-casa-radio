@@ -3049,22 +3049,25 @@ function renderContactosList() {
     el.innerHTML = '<p class="text-muted">No hay suscriptores registrados todavía.</p>';
     return;
   }
+  const todosGrupos = todosLosGrupos();
   el.innerHTML = S.suscriptores.map(s => {
     const grupos = s.grupos || [];
-    return `<div class="resp-row" style="align-items:flex-start;flex-direction:column;gap:6px;padding:.75rem 0">
-      <div style="display:flex;align-items:center;gap:8px;width:100%">
-        <div style="flex:1">
-          <div style="font-weight:600;font-size:14px">${esc(s.nombre||s.email)}</div>
-          <div style="font-size:12px;color:var(--cr-muted)">${esc(s.email)}</div>
-        </div>
+    const gruposDisponibles = todosGrupos.filter(g => !grupos.includes(g));
+    const chipStyle = 'display:inline-flex;align-items:center;gap:4px;background:#6c47ff;color:#fff;border:none;border-radius:20px;padding:3px 10px;font-size:12px;cursor:pointer;font-weight:500';
+    const chipDisp = 'display:inline-flex;align-items:center;gap:4px;background:#f0ecff;color:#6c47ff;border:1px solid #6c47ff;border-radius:20px;padding:3px 10px;font-size:12px;cursor:pointer;font-weight:500';
+    return `<div class="resp-row" style="align-items:flex-start;flex-direction:column;gap:8px;padding:.75rem 0">
+      <div>
+        <div style="font-weight:600;font-size:14px">${esc(s.nombre||s.email)}</div>
+        <div style="font-size:12px;color:var(--cr-muted)">${esc(s.email)}</div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;width:100%">
-        ${grupos.map(g => `<span class="grupo-chip sel" onclick="quitarGrupo('${s.id}','${esc(g)}')">${esc(g)} ✕</span>`).join('')}
-        <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
-          <input type="text" id="gi-${s.id}" placeholder="Nombre del grupo..." style="border:1px solid var(--cr-border);border-radius:8px;padding:4px 10px;font-size:12px;background:var(--cr-bg);color:var(--cr-text);width:140px;outline:none"
-            onkeydown="if(event.key==='Enter'){addGrupoFromInput('${s.id}')}">
-          <button onclick="addGrupoFromInput('${s.id}')" class="btn btn-sm btn-primary" style="padding:4px 10px;font-size:12px">+ Agregar</button>
-        </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+        ${grupos.map(g => `<span style="${chipStyle}" onclick="quitarGrupo('${s.id}','${esc(g)}')">${esc(g)} ✕</span>`).join('')}
+        ${gruposDisponibles.map(g => `<span style="${chipDisp}" onclick="agregarGrupo('${s.id}','${esc(g)}')" title="Agregar al grupo ${esc(g)}">+ ${esc(g)}</span>`).join('')}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="text" id="gi-${s.id}" placeholder="Nuevo grupo..." style="border:1px solid #ccc;border-radius:8px;padding:4px 10px;font-size:12px;width:140px;outline:none;color:#333;background:#fff"
+          onkeydown="if(event.key==='Enter'){addGrupoFromInput('${s.id}')}">
+        <button onclick="addGrupoFromInput('${s.id}')" style="background:#6c47ff;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:600">+ Agregar</button>
       </div>
     </div>`;
   }).join('');
