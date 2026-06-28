@@ -3390,7 +3390,7 @@ function selRsvpAsiste(val) {
 }
 
 async function submitRsvp() {
-  if (_rsvpAsiste === null) { toast('Indicá si vas o no'); return; }
+  if (_rsvpAsiste === null) _rsvpAsiste = true;
   const { nombre, email, suscriptorId } = window._rsvpIdent;
   const eventoId = window._rsvpEventoId;
   const ev = window._rsvpEv;
