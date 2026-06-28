@@ -275,6 +275,20 @@
   .stock-search input { padding-left:2.2rem; }
   .stock-search-icon { position:absolute; left:.7rem; top:50%; transform:translateY(-50%); color:var(--cr-muted); font-size:14px; pointer-events:none; }
 
+  /* EVENTOS */
+  .evento-card { background:var(--cr-card); border:.5px solid var(--cr-border); border-radius:var(--radius); padding:1rem; margin-bottom:.75rem; display:flex; gap:12px; align-items:flex-start; }
+  .evento-emoji { font-size:2rem; flex-shrink:0; width:48px; text-align:center; }
+  .evento-body { flex:1; min-width:0; }
+  .evento-nombre { font-weight:700; font-size:15px; margin-bottom:2px; }
+  .evento-sub { font-size:13px; color:var(--cr-muted); }
+  .ev-opcion-row { display:flex; align-items:center; gap:8px; padding:6px 8px; background:var(--cr-bg); border-radius:8px; }
+  .ev-opcion-row input[type=checkbox] { width:16px; height:16px; flex-shrink:0; cursor:pointer; }
+  .ev-opcion-label { flex:1; font-size:14px; }
+  .ev-cant-input { width:70px; padding:3px 6px; border-radius:6px; border:1px solid var(--cr-border); font-size:13px; background:var(--cr-card); color:var(--cr-text); text-align:right; }
+  .ev-unidad { font-size:12px; color:var(--cr-muted); width:40px; }
+  .evlista-item { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:.5px solid var(--cr-border); font-size:14px; }
+  .evlista-item:last-child { border-bottom:none; }
+
   @keyframes spin { to { transform: rotate(360deg); } }
 
   @media (max-width: 600px) {
@@ -410,6 +424,7 @@
     <button class="tab" onclick="switchTab('stock',this)">📦 Stock</button>
     <button class="tab" onclick="switchTab('personal',this)">👤 Mi panel</button>
     <button class="tab" onclick="switchTab('gastos',this)">💸 Gastos</button>
+    <button class="tab" onclick="switchTab('eventos',this)">🎉 Eventos</button>
     <button class="tab" onclick="switchTab('passwords',this)">🔑 Contraseñas</button>
     <button class="tab" onclick="switchTab('notas',this)">📝 Notas</button>
     <button class="tab" onclick="switchTab('votaciones',this)">🗳️ Votaciones</button>
@@ -465,6 +480,18 @@
     </div>
     <p class="text-muted" style="margin-bottom:1rem">Los suscriptores votan desde la Sala VIP. Todos pueden ver los resultados.</p>
     <div id="votaciones-priv"></div>
+  </div>
+
+  <!-- TAB: EVENTOS -->
+  <div id="tab-eventos" class="tab-content">
+    <div class="section-header">
+      <h2>🎉 Eventos</h2>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-ghost" onclick="openTemplateModal()">⚙️ Templates</button>
+        <button class="btn btn-primary btn-sm" onclick="openEventoModal()">+ Nuevo evento</button>
+      </div>
+    </div>
+    <div id="eventos-list"></div>
   </div>
 
   <!-- TAB: MI PANEL PERSONAL -->
@@ -845,9 +872,28 @@
         <option value="critico">🔴 Crítico — urge conseguir</option>
       </select>
     </div>
-    <div class="form-group" style="display:flex;align-items:center;gap:10px;margin-bottom:.5rem">
-      <input type="checkbox" id="stock-perecedero" style="width:18px;height:18px;flex-shrink:0;cursor:pointer">
-      <label for="stock-perecedero" style="margin:0;cursor:pointer;font-size:14px;font-weight:500;color:var(--cr-text)">🥬 Perecedero <span style="font-size:12px;color:var(--cr-muted);font-weight:400">(se vence — frutas, lácteos, carnes...)</span></label>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Unidad</label>
+        <select id="stock-unidad">
+          <option value="">— Sin unidad —</option>
+          <option value="kg">kg (kilogramos)</option>
+          <option value="g">g (gramos)</option>
+          <option value="L">L (litros)</option>
+          <option value="ml">ml (mililitros)</option>
+          <option value="u">u (unidades)</option>
+          <option value="paq">paq (paquetes)</option>
+          <option value="docena">docena</option>
+          <option value="lata">lata</option>
+          <option value="atado">atado</option>
+          <option value="sobre">sobre</option>
+          <option value="botella">botella</option>
+        </select>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px;padding-top:22px">
+        <input type="checkbox" id="stock-perecedero" style="width:18px;height:18px;flex-shrink:0;cursor:pointer">
+        <label for="stock-perecedero" style="margin:0;cursor:pointer;font-size:14px;font-weight:500;color:var(--cr-text)">🥬 Perecedero</label>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('stock-modal')">Cancelar</button>
@@ -987,6 +1033,76 @@
   </div>
 </div>
 
+<!-- EVENTO MODAL -->
+<div class="modal-overlay" id="evento-modal">
+  <div class="modal" style="max-width:560px">
+    <h3 id="evento-modal-title">Nuevo evento</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Nombre del evento</label><input type="text" id="ev-nombre" placeholder="Ej: Asado del sábado, Cumple de Rodri..."></div>
+      <div class="form-group"><label>Fecha</label><input type="date" id="ev-fecha"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Template</label>
+        <select id="ev-template" onchange="onEvTemplateChange()"></select>
+      </div>
+      <div class="form-group">
+        <label>¿Cuántos somos?</label>
+        <input type="number" id="ev-personas" min="1" value="4" onchange="recalcCantidades()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>¿Qué incluimos? <span style="font-weight:400;font-size:12px;color:var(--cr-muted)">— editá las cantidades si querés</span></label>
+      <div id="ev-opciones" style="margin-top:6px;display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('evento-modal')">Cancelar</button>
+      <button class="btn btn-success btn-sm" onclick="verListaEvento()">🛒 Ver lista</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarEvento()">Guardar</button>
+    </div>
+    <input type="hidden" id="ev-edit-id">
+  </div>
+</div>
+
+<!-- EVENTO LISTA MODAL -->
+<div class="modal-overlay" id="evento-lista-modal">
+  <div class="modal" style="max-width:440px">
+    <h3 id="evlista-titulo">Lista para el evento</h3>
+    <div id="evlista-items" style="margin:1rem 0"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('evento-lista-modal')">Cerrar</button>
+      <button class="btn btn-ghost btn-sm" onclick="copiarListaEvento()">📋 Copiar</button>
+      <button class="btn btn-primary btn-sm" onclick="agregarListaEventoACompras()">➕ Agregar a Compras</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPLATE MODAL -->
+<div class="modal-overlay" id="template-modal">
+  <div class="modal" style="max-width:560px">
+    <h3>⚙️ Templates de eventos</h3>
+    <div id="template-list" style="margin-bottom:1rem"></div>
+    <button class="btn btn-primary btn-sm" onclick="openNuevoTemplate()">+ Nuevo template</button>
+    <div id="nuevo-template-form" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cr-border)">
+      <div class="form-row">
+        <div class="form-group"><label>Nombre</label><input type="text" id="tpl-nombre" placeholder="Ej: Fondue, BBQ..."></div>
+        <div class="form-group"><label>Emoji</label><input type="text" id="tpl-emoji" placeholder="🍖" style="width:60px"></div>
+      </div>
+      <div class="form-group">
+        <label>Ingredientes <span style="font-size:12px;font-weight:400;color:var(--cr-muted)">(uno por línea: Nombre | cant/persona | unidad)</span></label>
+        <textarea id="tpl-opciones" rows="6" placeholder="Carne vacuna | 0.35 | kg&#10;Chorizo | 1 | u&#10;Pan | 2 | u" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--cr-border);font-size:13px;background:var(--cr-bg);color:var(--cr-text);resize:vertical"></textarea>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('nuevo-template-form').style.display='none'">Cancelar</button>
+        <button class="btn btn-primary btn-sm" onclick="guardarNuevoTemplate()">Guardar template</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('template-modal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <div id="loading" style="display:none;position:fixed;inset:0;background:rgba(26,26,26,.88);z-index:9999;align-items:center;justify-content:center;color:white;font-size:1rem;gap:14px;flex-direction:column">
   <div style="width:38px;height:38px;border:3px solid rgba(255,255,255,.25);border-top-color:#f5d400;border-radius:50%;animation:spin .8s linear infinite"></div>
@@ -1001,7 +1117,7 @@ const _SB = supabase.createClient(
 );
 
 // ── ESTADO EN MEMORIA ─────────────────────────────────────────
-const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[], comentarios:[], compras:[], personal:[], turnos:[], gastos:[] };
+const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[], comentarios:[], compras:[], personal:[], turnos:[], gastos:[], eventos:[] };
 
 async function dbLoad(table) {
   const { data, error } = await _SB.from(table).select('data').order('created_at', { ascending: true });
@@ -1025,10 +1141,10 @@ async function loadAll() {
   const ld = document.getElementById('loading');
   ld.style.display = 'flex';
   try {
-    const [news, tareas, stock, passwords, notas, subs, vots, cmts, compras, personal, turnos, gastos] = await Promise.all([
+    const [news, tareas, stock, passwords, notas, subs, vots, cmts, compras, personal, turnos, gastos, eventos] = await Promise.all([
       dbLoad('news'), dbLoad('tareas'), dbLoad('stock'),
       dbLoad('passwords'), dbLoad('notas'), dbLoad('suscriptores'), dbLoad('votaciones'), dbLoad('comentarios'), dbLoad('compras'),
-      dbLoad('personal'), dbLoad('turnos'), dbLoad('gastos')
+      dbLoad('personal'), dbLoad('turnos'), dbLoad('gastos'), dbLoad('eventos')
     ]);
     S.news = news.reverse();
     S.tareas = tareas;
@@ -1042,6 +1158,7 @@ async function loadAll() {
     S.personal = personal;
     S.turnos = turnos;
     S.gastos = gastos.reverse();
+    S.eventos = eventos;
   } catch(e) {
     console.error('loadAll', e);
     toast('Error conectando a Supabase');
@@ -1060,6 +1177,58 @@ const FAMILY_EMAILS = {
   nehue: 'nehuenafesser@hotmail.com',
   civo:  'francrivaro@gmail.com',
 };
+
+const EVENTO_TEMPLATES_DEFAULT = [
+  {
+    id: 'tpl-asado', nombre: 'Asado', emoji: '🔥',
+    opciones: [
+      { id: 'as-vac',    nombre: 'Carne vacuna',              cantPP: 0.35, unidad: 'kg',    def: true },
+      { id: 'as-chor',   nombre: 'Chorizo',                   cantPP: 1,    unidad: 'u',     def: true },
+      { id: 'as-morc',   nombre: 'Morcilla',                  cantPP: 0.5,  unidad: 'u',     def: true },
+      { id: 'as-ach',    nombre: 'Achuras (mollejas/riñones)',cantPP: 0.1,  unidad: 'kg',    def: false },
+      { id: 'as-pan',    nombre: 'Pan',                       cantPP: 2,    unidad: 'u',     def: true },
+      { id: 'as-papa',   nombre: 'Papa',                      cantPP: 2,    unidad: 'u',     def: true },
+      { id: 'as-huevo',  nombre: 'Huevo',                     cantPP: 1,    unidad: 'u',     def: false },
+      { id: 'as-criolla',nombre: 'Ensalada criolla',          cantPP: 0.25, unidad: 'u',     def: true  },
+      { id: 'as-sal',    nombre: 'Sal gruesa',                cantPP: 0,    unidad: 'sobre', def: true, fijaLabel: '1 sobre' },
+      { id: 'as-carbon', nombre: 'Carbón',                    cantPP: 0,    unidad: 'kg',    def: true, fijaLabel: '2 kg' },
+      { id: 'as-beb',    nombre: 'Bebidas (agua/gaseosa)',    cantPP: 0.5,  unidad: 'L',     def: true },
+    ]
+  },
+  {
+    id: 'tpl-pasta', nombre: 'Cena de pasta', emoji: '🍝',
+    opciones: [
+      { id: 'pa-pasta',  nombre: 'Pasta seca',           cantPP: 0.1,  unidad: 'kg', def: true },
+      { id: 'pa-salsa',  nombre: 'Salsa (lata/frasco)',  cantPP: 0.5,  unidad: 'u',  def: true },
+      { id: 'pa-queso',  nombre: 'Queso rallado',        cantPP: 0.03, unidad: 'kg', def: true },
+      { id: 'pa-carne',  nombre: 'Carne picada',         cantPP: 0.15, unidad: 'kg', def: false },
+      { id: 'pa-pan',    nombre: 'Pan',                  cantPP: 2,    unidad: 'u',  def: true },
+      { id: 'pa-beb',    nombre: 'Bebidas',              cantPP: 0.5,  unidad: 'L',  def: true },
+    ]
+  },
+  {
+    id: 'tpl-pizza', nombre: 'Pizza casera', emoji: '🍕',
+    opciones: [
+      { id: 'pz-harina', nombre: 'Harina',           cantPP: 0.15, unidad: 'kg', def: true },
+      { id: 'pz-mozza',  nombre: 'Mozzarella',       cantPP: 0.1,  unidad: 'kg', def: true },
+      { id: 'pz-salsa',  nombre: 'Salsa de tomate',  cantPP: 0.08, unidad: 'kg', def: true },
+      { id: 'pz-aceit',  nombre: 'Aceitunas',        cantPP: 0.02, unidad: 'kg', def: false },
+      { id: 'pz-jamon',  nombre: 'Jamón',            cantPP: 0.05, unidad: 'kg', def: false },
+      { id: 'pz-beb',    nombre: 'Bebidas',          cantPP: 0.5,  unidad: 'L',  def: true },
+    ]
+  },
+  {
+    id: 'tpl-cumple', nombre: 'Cumpleaños', emoji: '🎂',
+    opciones: [
+      { id: 'cu-torta',  nombre: 'Torta (porciones)', cantPP: 1,   unidad: 'u',   def: true },
+      { id: 'cu-snacks', nombre: 'Snacks',             cantPP: 0.2, unidad: 'paq', def: true },
+      { id: 'cu-vasos',  nombre: 'Vasos descartables', cantPP: 2,   unidad: 'u',   def: true },
+      { id: 'cu-platos', nombre: 'Platos descartables',cantPP: 1,   unidad: 'u',   def: true },
+      { id: 'cu-beb',    nombre: 'Bebidas',            cantPP: 0.5, unidad: 'L',   def: true },
+      { id: 'cu-velas',  nombre: 'Velas',              cantPP: 0,   unidad: 'u',   def: true, fijaLabel: 'según la edad' },
+    ]
+  },
+];
 
 async function enviarEmail(to_email, titulo, cuerpo) {
   await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, { to_email, titulo, cuerpo });
@@ -1501,12 +1670,14 @@ function openStockModal(id=null) {
     document.getElementById('stock-importancia').value=s.importancia||'media';
     document.getElementById('stock-estado').value=s.estado||'ok';
     document.getElementById('stock-perecedero').checked=!!s.perecedero;
+    document.getElementById('stock-unidad').value=s.unidad||'';
   } else {
     document.getElementById('stock-nombre').value='';
     document.getElementById('stock-cat').value='';
     document.getElementById('stock-importancia').value='media';
     document.getElementById('stock-estado').value='ok';
     document.getElementById('stock-perecedero').checked=false;
+    document.getElementById('stock-unidad').value='';
   }
   document.getElementById('stock-modal').classList.add('open');
 }
@@ -1522,6 +1693,7 @@ async function guardarStock() {
     importancia:document.getElementById('stock-importancia').value,
     estado:nuevoEstado,
     perecedero:document.getElementById('stock-perecedero').checked,
+    unidad:document.getElementById('stock-unidad').value,
   };
   try {
     if (editId) {
@@ -1767,7 +1939,10 @@ function renderStock() {
       :'';
     return `
       <div class="stock-item borde-${estado}">
-        <div class="stock-nombre">${esc(s.nombre)}</div>
+        <div style="display:flex;align-items:baseline;gap:6px">
+          <div class="stock-nombre">${esc(s.nombre)}</div>
+          ${s.unidad?`<span style="font-size:12px;color:var(--cr-muted)">${esc(s.unidad)}</span>`:''}
+        </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">
           ${s.cat?`<span class="badge">${esc(s.cat)}</span>`:''}
           <span class="badge badge-stock-${estado}">${estadoLabel[estado]}</span>
@@ -2627,7 +2802,283 @@ function renderGastos() {
   }).join('');
 }
 
-function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); renderVotacionesPriv(); renderPersonal(); renderGastos(); updateNotifBadge(); }
+// ── EVENTOS ───────────────────────────────────────────────────
+
+function getAllTemplates() {
+  const custom = S.eventos.filter(e => e.tipo === 'template');
+  return [...EVENTO_TEMPLATES_DEFAULT, ...custom];
+}
+
+function getTemplate(id) {
+  return getAllTemplates().find(t => t.id === id);
+}
+
+function calcCant(opcion, personas) {
+  if (opcion.fijaLabel) return null;
+  return Math.ceil(opcion.cantPP * personas * 10) / 10;
+}
+
+function renderEventos() {
+  const el = document.getElementById('eventos-list'); if (!el) return;
+  const eventos = S.eventos.filter(e => e.tipo === 'evento').sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
+  if (!eventos.length) {
+    el.innerHTML = '<div class="empty-state"><div class="ei">🎉</div><p>No hay eventos. ¡Creá uno!</p></div>';
+    return;
+  }
+  el.innerHTML = eventos.map(ev => {
+    const tpl = getTemplate(ev.templateId);
+    const emoji = tpl?.emoji || '🎉';
+    const cantItems = (ev.opcionesSeleccionadas||[]).length;
+    return `<div class="evento-card">
+      <div class="evento-emoji">${emoji}</div>
+      <div class="evento-body">
+        <div class="evento-nombre">${esc(ev.nombre)}</div>
+        <div class="evento-sub">${ev.fecha ? fmtDate(ev.fecha) : ''} · ${ev.personas || '?'} personas · ${cantItems} ingredientes</div>
+        ${tpl ? `<div style="font-size:12px;color:var(--cr-muted);margin-top:2px">${esc(tpl.nombre)}</div>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <button class="btn btn-sm btn-primary" onclick="abrirListaEvento('${ev.id}')">🛒 Lista</button>
+        <div style="display:flex;gap:4px">
+          <button class="btn-icon" onclick="openEventoModal('${ev.id}')">✏️</button>
+          <button class="btn-icon" onclick="eliminarEvento('${ev.id}')">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function onEvTemplateChange() {
+  recalcCantidades();
+}
+
+function recalcCantidades() {
+  const tplId = document.getElementById('ev-template').value;
+  const personas = parseInt(document.getElementById('ev-personas').value) || 4;
+  const tpl = getTemplate(tplId);
+  const container = document.getElementById('ev-opciones');
+  if (!tpl) { container.innerHTML = ''; return; }
+  const existing = {};
+  container.querySelectorAll('.ev-opcion-row').forEach(row => {
+    const id = row.dataset.opId;
+    const cb = row.querySelector('input[type=checkbox]');
+    const ci = row.querySelector('.ev-cant-input');
+    if (id) existing[id] = { checked: cb?.checked, cant: ci?.value };
+  });
+  container.innerHTML = tpl.opciones.map(op => {
+    const prev = existing[op.id];
+    const checked = prev ? prev.checked : op.def;
+    const calcedCant = calcCant(op, personas);
+    const cant = prev?.cant !== undefined && prev.cant !== '' ? prev.cant : (calcedCant ?? '');
+    const cantDisplay = op.fijaLabel
+      ? `<span style="font-size:12px;color:var(--cr-muted);min-width:70px;text-align:right">${op.fijaLabel}</span>`
+      : `<input class="ev-cant-input" type="number" min="0" step="0.1" value="${cant}" data-op-id="${op.id}">`;
+    return `<div class="ev-opcion-row" data-op-id="${op.id}">
+      <input type="checkbox" ${checked?'checked':''}>
+      <span class="ev-opcion-label">${esc(op.nombre)}</span>
+      ${cantDisplay}
+      <span class="ev-unidad">${esc(op.unidad||'')}</span>
+    </div>`;
+  }).join('');
+}
+
+function populateTemplateSelect(selectedId) {
+  const sel = document.getElementById('ev-template');
+  const all = getAllTemplates();
+  sel.innerHTML = all.map(t => `<option value="${t.id}" ${t.id===selectedId?'selected':''}>${t.emoji||'📋'} ${esc(t.nombre)}</option>`).join('');
+}
+
+function openEventoModal(id=null) {
+  document.getElementById('ev-edit-id').value = id||'';
+  document.getElementById('evento-modal-title').textContent = id ? 'Editar evento' : 'Nuevo evento';
+  document.getElementById('ev-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('ev-personas').value = '4';
+  document.getElementById('ev-nombre').value = '';
+  let selTplId = EVENTO_TEMPLATES_DEFAULT[0].id;
+  if (id) {
+    const ev = S.eventos.find(e=>e.id===id); if(!ev) return;
+    document.getElementById('ev-nombre').value = ev.nombre||'';
+    document.getElementById('ev-fecha').value = ev.fecha||'';
+    document.getElementById('ev-personas').value = ev.personas||4;
+    selTplId = ev.templateId || selTplId;
+  }
+  populateTemplateSelect(selTplId);
+  if (id) {
+    const ev = S.eventos.find(e=>e.id===id);
+    recalcCantidades();
+    if (ev.opcionesSeleccionadas || ev.cantidades) {
+      setTimeout(() => {
+        const container = document.getElementById('ev-opciones');
+        container.querySelectorAll('.ev-opcion-row').forEach(row => {
+          const opId = row.dataset.opId;
+          const cb = row.querySelector('input[type=checkbox]');
+          if (cb && ev.opcionesSeleccionadas) cb.checked = ev.opcionesSeleccionadas.includes(opId);
+          const ci = row.querySelector('.ev-cant-input');
+          if (ci && ev.cantidades?.[opId] !== undefined) ci.value = ev.cantidades[opId];
+        });
+      }, 0);
+    }
+  } else {
+    recalcCantidades();
+  }
+  document.getElementById('evento-modal').classList.add('open');
+}
+
+function getEventoFormData() {
+  const tplId = document.getElementById('ev-template').value;
+  const tpl = getTemplate(tplId);
+  const personas = parseInt(document.getElementById('ev-personas').value)||4;
+  const opcionesSeleccionadas = [];
+  const cantidades = {};
+  document.getElementById('ev-opciones').querySelectorAll('.ev-opcion-row').forEach(row => {
+    const opId = row.dataset.opId;
+    const cb = row.querySelector('input[type=checkbox]');
+    const ci = row.querySelector('.ev-cant-input');
+    if (cb?.checked) {
+      opcionesSeleccionadas.push(opId);
+      if (ci) cantidades[opId] = parseFloat(ci.value)||0;
+      else {
+        const op = tpl?.opciones.find(o=>o.id===opId);
+        if (op?.fijaLabel) cantidades[opId] = op.fijaLabel;
+      }
+    }
+  });
+  return { tplId, tpl, personas, opcionesSeleccionadas, cantidades };
+}
+
+function verListaEvento() {
+  const { tpl, personas, opcionesSeleccionadas, cantidades } = getEventoFormData();
+  const nombre = document.getElementById('ev-nombre').value.trim() || (tpl?.nombre||'Evento');
+  mostrarListaEvento(nombre, personas, opcionesSeleccionadas, cantidades, tpl);
+}
+
+function mostrarListaEvento(nombre, personas, opcionesSeleccionadas, cantidades, tpl) {
+  document.getElementById('evlista-titulo').textContent = `🛒 ${nombre} (${personas} personas)`;
+  const items = opcionesSeleccionadas.map(opId => {
+    const op = tpl?.opciones.find(o=>o.id===opId);
+    const cant = cantidades[opId];
+    const cantStr = typeof cant === 'string' ? cant : (cant ? cant : '');
+    return { nombre: op?.nombre||opId, cant: cantStr, unidad: op?.unidad||'' };
+  });
+  document.getElementById('evlista-items').innerHTML = items.map(it =>
+    `<div class="evlista-item"><span>${esc(it.nombre)}</span><span style="font-weight:600">${it.cant ? it.cant+' '+it.unidad : it.unidad||'—'}</span></div>`
+  ).join('');
+  window._eventoListaActual = { nombre, items };
+  document.getElementById('evento-lista-modal').classList.add('open');
+}
+
+function abrirListaEvento(id) {
+  const ev = S.eventos.find(e=>e.id===id); if(!ev) return;
+  const tpl = getTemplate(ev.templateId);
+  mostrarListaEvento(ev.nombre, ev.personas, ev.opcionesSeleccionadas||[], ev.cantidades||{}, tpl);
+}
+
+function copiarListaEvento() {
+  const { nombre, items } = window._eventoListaActual || {};
+  if (!items?.length) return;
+  navigator.clipboard.writeText(`🛒 ${nombre}\n\n`+items.map(i=>`• ${i.nombre}${i.cant?' — '+i.cant+' '+i.unidad:''}`).join('\n')).then(()=>toast('¡Lista copiada!'));
+}
+
+function agregarListaEventoACompras() {
+  const { items } = window._eventoListaActual || {};
+  if (!items?.length) return;
+  items.forEach(it => {
+    listaItems.push({ id: uid(), texto: it.nombre, checked: true, auto: false, cantidad: it.cant||'' });
+  });
+  closeModal('evento-lista-modal');
+  toast(`✅ ${items.length} ítems agregados a la lista de compras`);
+}
+
+async function guardarEvento() {
+  const nombre = document.getElementById('ev-nombre').value.trim();
+  if (!nombre) { toast('Ingresá el nombre del evento'); return; }
+  const { tplId, personas, opcionesSeleccionadas, cantidades } = getEventoFormData();
+  const editId = document.getElementById('ev-edit-id').value;
+  const obj = {
+    id: editId||uid(), tipo:'evento', nombre,
+    fecha: document.getElementById('ev-fecha').value,
+    templateId: tplId, personas, opcionesSeleccionadas, cantidades,
+  };
+  try {
+    if (editId) {
+      await dbUpdate('eventos', obj);
+      const i = S.eventos.findIndex(e=>e.id===editId); if(i!==-1) S.eventos[i]=obj;
+    } else {
+      await dbInsert('eventos', obj);
+      S.eventos.push(obj);
+    }
+    closeModal('evento-modal'); renderEventos(); toast(editId?'Evento actualizado':'¡Evento guardado!');
+  } catch(e) { toast('Error al guardar'); }
+}
+
+async function eliminarEvento(id) {
+  confirmDlg('¿Eliminar este evento?', async () => {
+    try {
+      await dbDelete('eventos', id);
+      S.eventos = S.eventos.filter(e=>e.id!==id); renderEventos(); toast('Eliminado');
+    } catch(e) { toast('Error'); }
+  });
+}
+
+function openTemplateModal() {
+  renderTemplateList();
+  document.getElementById('nuevo-template-form').style.display='none';
+  document.getElementById('template-modal').classList.add('open');
+}
+
+function renderTemplateList() {
+  const custom = S.eventos.filter(e=>e.tipo==='template');
+  const el = document.getElementById('template-list');
+  const defaultHtml = EVENTO_TEMPLATES_DEFAULT.map(t =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:.5rem 0;border-bottom:.5px solid var(--cr-border)">
+      <span style="font-size:1.2rem">${t.emoji}</span>
+      <span style="flex:1;font-size:14px;font-weight:500">${esc(t.nombre)}</span>
+      <span class="badge">Predeterminado</span>
+    </div>`).join('');
+  const customHtml = custom.length
+    ? custom.map(t => `<div style="display:flex;align-items:center;gap:8px;padding:.5rem 0;border-bottom:.5px solid var(--cr-border)">
+        <span style="font-size:1.2rem">${t.emoji||'📋'}</span>
+        <span style="flex:1;font-size:14px;font-weight:500">${esc(t.nombre)}</span>
+        <button class="btn-icon" onclick="eliminarTemplate('${t.id}')">🗑</button>
+      </div>`).join('')
+    : '';
+  el.innerHTML = defaultHtml + customHtml;
+}
+
+function openNuevoTemplate() {
+  document.getElementById('tpl-nombre').value='';
+  document.getElementById('tpl-emoji').value='';
+  document.getElementById('tpl-opciones').value='';
+  document.getElementById('nuevo-template-form').style.display='';
+}
+
+async function guardarNuevoTemplate() {
+  const nombre = document.getElementById('tpl-nombre').value.trim();
+  if (!nombre) { toast('Ingresá un nombre'); return; }
+  const lines = document.getElementById('tpl-opciones').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  const opciones = lines.map((line, i) => {
+    const [n, cant, unid] = line.split('|').map(s=>s.trim());
+    return { id: 'c'+Date.now()+i, nombre:n||line, cantPP: parseFloat(cant)||0, unidad:unid||'u', def:true };
+  });
+  const obj = { id: uid(), tipo:'template', nombre, emoji:document.getElementById('tpl-emoji').value.trim()||'📋', opciones };
+  try {
+    await dbInsert('eventos', obj);
+    S.eventos.push(obj);
+    renderTemplateList();
+    document.getElementById('nuevo-template-form').style.display='none';
+    toast('¡Template creado!');
+  } catch(e) { toast('Error al guardar'); }
+}
+
+async function eliminarTemplate(id) {
+  confirmDlg('¿Eliminar este template?', async () => {
+    try {
+      await dbDelete('eventos', id);
+      S.eventos = S.eventos.filter(e=>e.id!==id); renderTemplateList(); toast('Eliminado');
+    } catch(e) { toast('Error'); }
+  });
+}
+
+function renderAll() { renderTareas(); renderStock(); renderPasswords(); renderNotas(); renderVotacionesPriv(); renderPersonal(); renderGastos(); renderEventos(); updateNotifBadge(); }
 
 // ── GOOGLE CALENDAR ────────────────────────────────────────────
 function gcalUrl(titulo, fecha, hora='', descripcion='') {
