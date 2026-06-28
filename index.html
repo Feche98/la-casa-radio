@@ -3362,13 +3362,15 @@ function buildRsvpOpciones(tpl, ev, tipo) {
       op.subIngredientes.forEach(sub => {
         const key = `${op.id}::${sub.id}`;
         if (!sel.has(key)) return;
+        const unidSub = sub.unidad ? `<span style="font-size:12px;color:#888;margin-left:4px">${esc(sub.unidad)}</span>` : '';
         rows.push(tipo === 'menu-personalizado'
-          ? `<div class="inv-opcion-row" style="margin-left:16px"><span class="inv-opcion-label">↳ ${esc(sub.nombre)}</span><input class="inv-opcion-cant" type="number" min="0" step="1" placeholder="0" data-key="${key}"></div>`
+          ? `<div class="inv-opcion-row" style="margin-left:16px"><span class="inv-opcion-label">↳ ${esc(sub.nombre)}</span><input class="inv-opcion-cant" type="number" min="0" step="1" placeholder="0" data-key="${key}">${unidSub}</div>`
           : `<div class="inv-opcion-row" style="margin-left:16px"><label style="display:flex;align-items:center;gap:8px;flex:1"><input type="checkbox" data-key="${key}"> <span>↳ ${esc(sub.nombre)}</span></label></div>`);
       });
     } else {
+      const unid = op.unidad ? `<span style="font-size:12px;color:#888;margin-left:4px">${esc(op.unidad)}</span>` : '';
       rows.push(tipo === 'menu-personalizado'
-        ? `<div class="inv-opcion-row"><span class="inv-opcion-label">${esc(op.nombre)}</span><input class="inv-opcion-cant" type="number" min="0" step="1" placeholder="0" data-key="${op.id}"></div>`
+        ? `<div class="inv-opcion-row"><span class="inv-opcion-label">${esc(op.nombre)}</span><input class="inv-opcion-cant" type="number" min="0" step="1" placeholder="0" data-key="${op.id}">${unid}</div>`
         : `<div class="inv-opcion-row"><label style="display:flex;align-items:center;gap:8px;flex:1"><input type="checkbox" data-key="${op.id}"> <span>${esc(op.nombre)}</span></label></div>`);
     }
   });
@@ -3727,6 +3729,12 @@ function abrirListaEvento(id) {
   }
 }
 
+function itemTieneContenido(i) {
+  if (!i.cant) return false;
+  const c = String(i.cant).trim();
+  return c !== '' && c !== '0' && c !== '—';
+}
+
 function copiarListaEvento() {
   const { nombre, items } = window._eventoListaActual || {};
   if (!items?.length) return;
@@ -3734,27 +3742,32 @@ function copiarListaEvento() {
   let lastParent = null;
   items.forEach(i => {
     if (i.isSub) {
+      if (!itemTieneContenido(i)) return;
       if (i.parentNombre && i.parentNombre !== lastParent) {
         lineas.push(`• ${i.parentNombre}`);
         lastParent = i.parentNombre;
       }
-      lineas.push(`  ↳ ${i.nombre}${i.cant ? ' — '+i.cant+' '+i.unidad : ''}`);
+      lineas.push(`  ↳ ${i.nombre} — ${i.cant}${i.unidad ? ' '+i.unidad : ''}`);
     } else {
+      if (!itemTieneContenido(i)) { lastParent = null; return; }
       lastParent = null;
-      lineas.push(`• ${i.nombre}${i.cant ? ' — '+i.cant+' '+i.unidad : ''}`);
+      lineas.push(`• ${i.nombre} — ${i.cant}${i.unidad ? ' '+i.unidad : ''}`);
     }
   });
+  if (!lineas.length) { toast('No hay ítems con cantidad para copiar'); return; }
   navigator.clipboard.writeText(`🛒 ${nombre}\n\n`+lineas.join('\n')).then(()=>toast('¡Lista copiada!'));
 }
 
 function agregarListaEventoACompras() {
   const { items } = window._eventoListaActual || {};
   if (!items?.length) return;
-  items.forEach(it => {
+  const conCant = items.filter(itemTieneContenido);
+  if (!conCant.length) { toast('No hay ítems con cantidad para agregar'); return; }
+  conCant.forEach(it => {
     listaItems.push({ id: uid(), texto: it.nombre, checked: true, auto: false, cantidad: it.cant||'' });
   });
   closeModal('evento-lista-modal');
-  toast(`✅ ${items.length} ítems agregados a la lista de compras`);
+  toast(`✅ ${conCant.length} ítems agregados a la lista de compras`);
 }
 
 async function guardarEvento() {
