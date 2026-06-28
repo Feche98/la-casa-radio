@@ -1100,7 +1100,10 @@
       </div>
     </div>
     <div class="form-group">
-      <label id="ev-opciones-label">¿Qué incluimos? <span id="ev-opciones-sublabel" style="font-weight:400;font-size:12px;color:var(--cr-muted)">— editá las cantidades si querés</span></label>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <label id="ev-opciones-label">¿Qué incluimos? <span id="ev-opciones-sublabel" style="font-weight:400;font-size:12px;color:var(--cr-muted)">— editá las cantidades si querés</span></label>
+        <button type="button" class="btn btn-sm btn-ghost" style="font-size:11px;padding:2px 8px" onclick="toggleSeleccionarTodos()">Sel. todos</button>
+      </div>
       <div id="ev-opciones" style="margin-top:6px;display:flex;flex-direction:column;gap:6px"></div>
     </div>
     <div class="modal-footer">
@@ -3530,6 +3533,13 @@ function recalcCantidades() {
       }
       return evRow(op, op.id, op.nombre, op.cantPP, op.unidad);
     }).join('');
+}
+
+function toggleSeleccionarTodos() {
+  const container = document.getElementById('ev-opciones');
+  const checkboxes = [...container.querySelectorAll('input[type=checkbox]')];
+  const todosSeleccionados = checkboxes.every(cb => cb.checked);
+  checkboxes.forEach(cb => { cb.checked = !todosSeleccionados; });
 }
 
 function toggleEvParent(cb, parentOpId) {
