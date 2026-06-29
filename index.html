@@ -537,6 +537,8 @@
         <button class="btn btn-sm btn-ghost" onclick="openPersonalModal('recordatorio')">📅 Recordatorio</button>
         <button class="btn btn-sm btn-ghost" onclick="openPersonalModal('tarea')">☑ Tarea</button>
         <button class="btn btn-sm btn-ghost" onclick="openPersonalModal('habito')">🔁 Hábito</button>
+        <button class="btn btn-sm btn-ghost" onclick="openMantenimientoModal()">🔧 Mantenimiento</button>
+        <button class="btn btn-sm btn-ghost" onclick="focusBolucompraInput()">🛍️ Bolucompras</button>
       </div>
     </div>
 
@@ -559,9 +561,29 @@
     </div>
 
     <!-- Turnos asignados a este usuario -->
-    <div class="card" id="personal-turnos-card">
+    <div class="card" id="personal-turnos-card" style="margin-bottom:.75rem">
       <div class="card-title">🔄 Mis tareas rotativas</div>
       <div id="personal-turnos"></div>
+    </div>
+
+    <!-- Mantenimiento -->
+    <div class="card" style="margin-bottom:.75rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+        <div class="card-title" style="margin-bottom:0">🔧 Mantenimiento</div>
+        <button class="btn btn-sm btn-ghost" onclick="openMantenimientoModal()">+ Agregar</button>
+      </div>
+      <div id="personal-mantenimiento"></div>
+    </div>
+
+    <!-- Bolucompras -->
+    <div class="card">
+      <div class="card-title">🛍️ Bolucompras</div>
+      <div style="display:flex;gap:8px;margin-bottom:.75rem">
+        <input type="text" id="boluc-input" placeholder="Algo que querés comprar..." style="flex:1;font-size:13px"
+          onkeydown="if(event.key==='Enter') agregarBolucompra()">
+        <button class="btn btn-sm btn-ghost" onclick="agregarBolucompra()">+ Agregar</button>
+      </div>
+      <div id="personal-bolucompras"></div>
     </div>
   </div>
 
@@ -936,6 +958,24 @@
       <button class="btn btn-primary btn-sm" onclick="guardarStock()">Guardar</button>
     </div>
     <input type="hidden" id="stock-edit-id">
+  </div>
+</div>
+
+<!-- MODAL MANTENIMIENTO -->
+<div class="modal-overlay" id="mantenimiento-modal">
+  <div class="modal" style="max-width:460px">
+    <h3 id="mant-modal-title">🔧 Registrar mantenimiento</h3>
+    <div class="form-group"><label>¿Qué hiciste?</label><input type="text" id="mant-nombre" placeholder="Ej: Cambio de aceite, Estudios médicos..."></div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha en que lo hiciste</label><input type="date" id="mant-fecha"></div>
+      <div class="form-group"><label>Próxima vez (opcional)</label><input type="date" id="mant-proxima"></div>
+    </div>
+    <div class="form-group"><label>Detalle / comentario (opcional)</label><textarea id="mant-detalle" rows="3" placeholder="Ej: Shell Helix 5W-30, Dr. García, filtro marca X..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('mantenimiento-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarMantenimiento()">Guardar</button>
+    </div>
+    <input type="hidden" id="mant-edit-id">
   </div>
 </div>
 
@@ -4138,7 +4178,16 @@ async function guardarPersonal() {
 async function togglePersonalHecho(id) {
   const item = S.personal.find(p=>p.id===id); if(!item) return;
   item.hecho = !item.hecho;
-  try { await dbUpdate('personal', item); renderPersonal(); } catch(e) { toast('Error'); }
+  try {
+    await dbUpdate('personal', item);
+    renderPersonal();
+    if (item.tipo === 'recordatorio' && item.hecho) {
+      setTimeout(() => confirmDlg(
+        `¿Guardás "${item.nombre}" en el historial de mantenimiento?`,
+        () => openMantenimientoModal(null, item.nombre)
+      ), 300);
+    }
+  } catch(e) { toast('Error'); }
 }
 
 async function marcarHabitoHecho(id) {
@@ -4175,6 +4224,73 @@ async function eliminarPersonal(id) {
       S.personal = S.personal.filter(p=>p.id!==id); renderPersonal(); toast('Eliminado');
     } catch(e) { toast('Error'); }
   });
+}
+
+// ── MANTENIMIENTO ─────────────────────────────────────────────
+function openMantenimientoModal(id=null, preNombre='') {
+  document.getElementById('mant-edit-id').value = id||'';
+  document.getElementById('mant-modal-title').textContent = id ? '🔧 Editar registro' : '🔧 Registrar mantenimiento';
+  document.getElementById('mant-nombre').value = '';
+  document.getElementById('mant-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('mant-proxima').value = '';
+  document.getElementById('mant-detalle').value = '';
+  if (id) {
+    const item = S.personal.find(p=>p.id===id); if(!item) return;
+    document.getElementById('mant-nombre').value = item.nombre;
+    document.getElementById('mant-fecha').value = item.fecha||'';
+    document.getElementById('mant-proxima').value = item.proximaFecha||'';
+    document.getElementById('mant-detalle').value = item.detalle||'';
+  } else if (preNombre) {
+    document.getElementById('mant-nombre').value = preNombre;
+  }
+  document.getElementById('mantenimiento-modal').classList.add('open');
+}
+
+async function guardarMantenimiento() {
+  const nombre = document.getElementById('mant-nombre').value.trim();
+  const fecha  = document.getElementById('mant-fecha').value;
+  if (!nombre) { toast('Ingresá qué hiciste'); return; }
+  if (!fecha)  { toast('Ingresá la fecha'); return; }
+  const editId = document.getElementById('mant-edit-id').value;
+  const obj = {
+    id: editId||uid(), usuario: currentUser, tipo: 'mantenimiento',
+    nombre, fecha,
+    proximaFecha: document.getElementById('mant-proxima').value||null,
+    detalle: document.getElementById('mant-detalle').value.trim()||null,
+  };
+  try {
+    if (editId) {
+      await dbUpdate('personal', obj);
+      const i = S.personal.findIndex(p=>p.id===editId); if(i!==-1) S.personal[i]=obj;
+    } else {
+      await dbInsert('personal', obj);
+      S.personal.push(obj);
+    }
+    closeModal('mantenimiento-modal'); renderPersonal(); toast('✅ Guardado en mantenimiento');
+  } catch(e) { toast('Error al guardar'); }
+}
+
+// ── BOLUCOMPRAS ───────────────────────────────────────────────
+function focusBolucompraInput() {
+  switchTab('personal', document.querySelector('.tab[onclick*="personal"]'));
+  setTimeout(() => document.getElementById('boluc-input')?.focus(), 100);
+}
+
+async function agregarBolucompra() {
+  const inp = document.getElementById('boluc-input');
+  const nombre = inp?.value.trim(); if (!nombre) return;
+  const obj = { id: uid(), usuario: currentUser, tipo: 'bolucompra', nombre, hecho: false, fecha: new Date().toISOString().slice(0,10) };
+  try {
+    await dbInsert('personal', obj);
+    S.personal.push(obj);
+    inp.value = ''; renderPersonal();
+  } catch(e) { toast('Error al guardar'); }
+}
+
+async function toggleBolucompraHecho(id) {
+  const item = S.personal.find(p=>p.id===id); if(!item) return;
+  item.hecho = !item.hecho;
+  try { await dbUpdate('personal', item); renderPersonal(); } catch(e) { toast('Error'); }
 }
 
 function renderPersonal() {
@@ -4320,6 +4436,67 @@ function renderPersonal() {
         <button class="btn btn-sm btn-success" onclick="marcarTurnoDone('${t.id}')" style="font-size:11px">✓ Hecho</button>
       </div>`;
     }).join('');
+  }
+
+  // ── Mantenimiento ──
+  const mantEl = document.getElementById('personal-mantenimiento');
+  const mants = mine.filter(p=>p.tipo==='mantenimiento')
+    .sort((a,b) => {
+      // primero los vencidos o sin próxima, luego por proximaFecha asc
+      const aVenc = a.proximaFecha && a.proximaFecha < today;
+      const bVenc = b.proximaFecha && b.proximaFecha < today;
+      if (aVenc !== bVenc) return aVenc ? -1 : 1;
+      if (!a.proximaFecha && b.proximaFecha) return 1;
+      if (a.proximaFecha && !b.proximaFecha) return -1;
+      return (a.proximaFecha||'').localeCompare(b.proximaFecha||'');
+    });
+  if (!mants.length) {
+    mantEl.innerHTML = '<p class="text-muted" style="padding:.5rem 0">Sin registros todavía. Usá el botón + Agregar.</p>';
+  } else {
+    mantEl.innerHTML = mants.map(m => {
+      const vencido = m.proximaFecha && m.proximaFecha < today;
+      const proximo = m.proximaFecha && !vencido && m.proximaFecha <= new Date(Date.now()+30*86400000).toISOString().slice(0,10);
+      let proxTag = '';
+      if (m.proximaFecha) {
+        const dias = Math.ceil((new Date(m.proximaFecha) - new Date(today)) / 86400000);
+        if (vencido) proxTag = `<span style="color:#ef4444;font-weight:600;font-size:12px"> · ¡Vencido hace ${-dias}d!</span>`;
+        else if (proximo) proxTag = `<span style="color:#f59e0b;font-size:12px"> · Próxima en ${dias}d (${m.proximaFecha})</span>`;
+        else proxTag = `<span style="color:var(--cr-muted);font-size:12px"> · Próxima: ${m.proximaFecha}</span>`;
+      }
+      return `<div class="personal-item">
+        <div class="personal-item-body">
+          <div class="personal-item-nombre">${esc(m.nombre)}</div>
+          <div class="personal-item-sub">Realizado: ${m.fecha}${proxTag}</div>
+          ${m.detalle?`<div style="font-size:12px;color:var(--cr-muted);margin-top:2px">${esc(m.detalle)}</div>`:''}
+        </div>
+        <div class="personal-item-actions">
+          <button class="btn-icon" onclick="openMantenimientoModal('${m.id}')" title="Editar">✏️</button>
+          <button class="btn-icon" onclick="eliminarPersonal('${m.id}')">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Bolucompras ──
+  const bolucEl = document.getElementById('personal-bolucompras');
+  const bolucs = mine.filter(p=>p.tipo==='bolucompra').sort((a,b)=>{
+    if (a.hecho !== b.hecho) return a.hecho - b.hecho;
+    return (b.fecha||'').localeCompare(a.fecha||'');
+  });
+  if (!bolucs.length) {
+    bolucEl.innerHTML = '<p class="text-muted" style="padding:.5rem 0">Tu lista de bolucompras está vacía.</p>';
+  } else {
+    bolucEl.innerHTML = bolucs.map(b => `
+      <div class="personal-item">
+        <input type="checkbox" ${b.hecho?'checked':''} onchange="toggleBolucompraHecho('${b.id}')"
+          style="width:17px;height:17px;flex-shrink:0;cursor:pointer;margin-top:2px">
+        <div class="personal-item-body" style="${b.hecho?'opacity:.45;text-decoration:line-through':''}">
+          <div class="personal-item-nombre">${esc(b.nombre)}</div>
+        </div>
+        <div class="personal-item-actions">
+          <button class="btn-icon" onclick="eliminarPersonal('${b.id}')">🗑</button>
+        </div>
+      </div>`).join('');
   }
 }
 
