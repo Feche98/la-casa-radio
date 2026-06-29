@@ -975,6 +975,10 @@
 <div class="modal-overlay" id="mate-modal">
   <div class="modal" style="max-width:420px">
     <h3>🧉 El mate</h3>
+    <div id="mate-notif-banner" style="display:none;align-items:center;gap:8px;background:#fffbeb;border:1px solid #f6d860;border-radius:8px;padding:.5rem .75rem;margin-bottom:.75rem;font-size:13px">
+      <span>🔕 Las notificaciones están desactivadas.</span>
+      <button onclick="pedirPermisoNotif()" style="background:#6c47ff;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;font-weight:600">Activar</button>
+    </div>
     <div style="margin-bottom:1rem">
       <label style="font-size:13px;color:var(--cr-muted);font-weight:500">¿A quién le mandás?</label>
       <div id="mate-destinatarios" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:.5rem"></div>
@@ -4815,9 +4819,17 @@ function renderMateBadge() {
   else { badge.style.display = 'none'; }
 }
 
+async function pedirPermisoNotif() {
+  const result = await Notification.requestPermission();
+  const banner = document.getElementById('mate-notif-banner');
+  if (result === 'granted') { if (banner) banner.style.display = 'none'; toast('✅ Notificaciones activadas'); }
+  else { if (banner) banner.querySelector('span').textContent = '🔕 Permiso denegado. Habilitalo desde el candado en la barra de dirección.'; }
+}
+
 function openMateModal() {
   if (!currentUser) return;
-  if (Notification.permission === 'default') Notification.requestPermission();
+  const banner = document.getElementById('mate-notif-banner');
+  if (banner) banner.style.display = (Notification.permission !== 'granted') ? 'flex' : 'none';
   S.mateNotifs.forEach(function(n) { if (n.para === currentUser) _mateSeenIds.add(n.id); });
   renderMateBadge();
   renderMateModal();
