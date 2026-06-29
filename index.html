@@ -635,6 +635,7 @@
       <div style="display:flex;gap:12px;margin:4px 0 8px">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;color:var(--cr-text)"><input type="radio" name="g-div" value="igual" checked onchange="toggleDivision(this.value)"> Partes iguales</label>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;color:var(--cr-text)"><input type="radio" name="g-div" value="pct" onchange="toggleDivision(this.value)"> Porcentajes</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;color:var(--cr-text)"><input type="radio" name="g-div" value="monto" onchange="toggleDivision(this.value)"> Por monto</label>
       </div>
       <div id="g-pct-inputs" style="display:none"></div>
     </div>
@@ -2822,6 +2823,15 @@ function toggleDivision(val) {
         <span style="font-size:13px;color:var(--cr-muted)">%</span>
       </div>`).join('');
     row.style.display='block';
+  } else if (val==='monto') {
+    const parts = [...document.querySelectorAll('#g-participantes input:checked')].map(c=>c.value);
+    row.innerHTML = parts.map(p=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <label style="width:60px;font-weight:500">${GUSERS[p]||p}</label>
+        <input type="number" id="monto-${p}" min="0" step="0.01" value="0" style="width:100px">
+        <span style="font-size:13px;color:var(--cr-muted)">$</span>
+      </div>`).join('');
+    row.style.display='block';
   } else {
     row.style.display='none';
   }
@@ -2848,9 +2858,14 @@ function openGastoModal(id=null) {
     document.getElementById('g-categoria').value=g.categoria||'';
     document.getElementById('g-descripcion').value=g.descripcion||'';
     document.querySelectorAll('#g-participantes input').forEach(c=>c.checked=(g.participantes||[]).includes(c.value));
-    if (g.porcentajes) {
+    if (g.montos) {
+      document.querySelector('input[name="g-div"][value="monto"]').checked=true;
+      toggleDivision('monto');
+      Object.entries(g.montos).forEach(([p,v]) => { const inp=document.getElementById('monto-'+p); if(inp) inp.value=v; });
+    } else if (g.porcentajes) {
       document.querySelector('input[name="g-div"][value="pct"]').checked=true;
       toggleDivision('pct');
+      Object.entries(g.porcentajes).forEach(([p,v]) => { const inp=document.getElementById('pct-'+p); if(inp) inp.value=v; });
     }
   }
   document.getElementById('gasto-modal').classList.add('open');
@@ -2864,12 +2879,20 @@ async function guardarGasto() {
   const participantes=[...document.querySelectorAll('#g-participantes input:checked')].map(c=>c.value);
   if (!participantes.length) { toast('Seleccioná al menos un participante'); return; }
   const divType=document.querySelector('input[name="g-div"]:checked').value;
-  let porcentajes=null;
+  let porcentajes=null, montos=null;
   if (divType==='pct') {
     porcentajes={};
     let total=0;
     for(const p of participantes){ const v=parseFloat(document.getElementById('pct-'+p)?.value||0); porcentajes[p]=v; total+=v; }
     if (Math.abs(total-100)>0.5) { toast('Los porcentajes deben sumar 100%'); return; }
+  } else if (divType==='monto') {
+    montos={};
+    let total=0;
+    for(const p of participantes){ const v=parseFloat(document.getElementById('monto-'+p)?.value||0); montos[p]=v; total+=v; }
+    if (total<=0) { toast('Ingresá los montos por persona'); return; }
+    if (Math.abs(total-monto)>0.5) { toast(`Los montos deben sumar $${monto}`); return; }
+    porcentajes={};
+    for(const p of participantes){ porcentajes[p]=Math.round(montos[p]/total*10000)/100; }
   }
   const editId=document.getElementById('g-edit-id').value;
   const obj={
@@ -2878,7 +2901,7 @@ async function guardarGasto() {
     fecha:document.getElementById('g-fecha').value,
     categoria:document.getElementById('g-categoria').value.trim(),
     descripcion:document.getElementById('g-descripcion').value.trim(),
-    participantes, porcentajes,
+    participantes, porcentajes, montos,
   };
   try {
     if(editId){ await dbUpdate('gastos',obj); const i=S.gastos.findIndex(g=>g.id===editId); if(i!==-1)S.gastos[i]=obj; }
