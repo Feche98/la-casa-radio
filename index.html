@@ -578,9 +578,11 @@
     <!-- Bolucompras -->
     <div class="card">
       <div class="card-title">🛍️ Bolucompras</div>
-      <div style="display:flex;gap:8px;margin-bottom:.75rem">
-        <input type="text" id="boluc-input" placeholder="Algo que querés comprar..." style="flex:1;font-size:13px"
+      <div style="display:flex;gap:8px;margin-bottom:.75rem;flex-wrap:wrap">
+        <input type="text" id="boluc-input" placeholder="Algo que querés comprar..." style="flex:2;min-width:140px;font-size:13px"
           onkeydown="if(event.key==='Enter') agregarBolucompra()">
+        <input type="text" id="boluc-cat" placeholder="Categoría (opcional)" style="flex:1;min-width:100px;font-size:13px" list="boluc-cat-list">
+        <datalist id="boluc-cat-list"></datalist>
         <button class="btn btn-sm btn-ghost" onclick="agregarBolucompra()">+ Agregar</button>
       </div>
       <div id="personal-bolucompras"></div>
@@ -965,7 +967,10 @@
 <div class="modal-overlay" id="mantenimiento-modal">
   <div class="modal" style="max-width:460px">
     <h3 id="mant-modal-title">📋 Nuevo asunto personal</h3>
-    <div class="form-group"><label>¿Qué hiciste?</label><input type="text" id="mant-nombre" placeholder="Ej: Cambio de aceite, Estudios médicos..."></div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2"><label>¿Qué hiciste?</label><input type="text" id="mant-nombre" placeholder="Ej: Cambio de aceite, Estudios médicos..."></div>
+      <div class="form-group" style="flex:1"><label>Categoría (opcional)</label><input type="text" id="mant-categoria" placeholder="Ej: Auto, Salud..." list="mant-cat-list"><datalist id="mant-cat-list"></datalist></div>
+    </div>
     <div class="form-row">
       <div class="form-group"><label>Fecha en que lo hiciste</label><input type="date" id="mant-fecha"></div>
       <div class="form-group"><label>Próxima vez (opcional)</label><input type="date" id="mant-proxima"></div>
@@ -4231,12 +4236,17 @@ function openMantenimientoModal(id=null, preNombre='') {
   document.getElementById('mant-edit-id').value = id||'';
   document.getElementById('mant-modal-title').textContent = id ? '📋 Editar asunto' : '📋 Nuevo asunto personal';
   document.getElementById('mant-nombre').value = '';
+  document.getElementById('mant-categoria').value = '';
   document.getElementById('mant-fecha').value = new Date().toISOString().slice(0,10);
   document.getElementById('mant-proxima').value = '';
   document.getElementById('mant-detalle').value = '';
+  // Poblar datalist con categorías usadas
+  const cats = [...new Set(S.personal.filter(p=>p.usuario===currentUser&&p.tipo==='mantenimiento'&&p.categoria).map(p=>p.categoria))];
+  document.getElementById('mant-cat-list').innerHTML = cats.map(c=>`<option value="${esc(c)}">`).join('');
   if (id) {
     const item = S.personal.find(p=>p.id===id); if(!item) return;
     document.getElementById('mant-nombre').value = item.nombre;
+    document.getElementById('mant-categoria').value = item.categoria||'';
     document.getElementById('mant-fecha').value = item.fecha||'';
     document.getElementById('mant-proxima').value = item.proximaFecha||'';
     document.getElementById('mant-detalle').value = item.detalle||'';
@@ -4255,6 +4265,7 @@ async function guardarMantenimiento() {
   const obj = {
     id: editId||uid(), usuario: currentUser, tipo: 'mantenimiento',
     nombre, fecha,
+    categoria: document.getElementById('mant-categoria').value.trim()||null,
     proximaFecha: document.getElementById('mant-proxima').value||null,
     detalle: document.getElementById('mant-detalle').value.trim()||null,
   };
@@ -4278,12 +4289,19 @@ function focusBolucompraInput() {
 
 async function agregarBolucompra() {
   const inp = document.getElementById('boluc-input');
+  const catInp = document.getElementById('boluc-cat');
   const nombre = inp?.value.trim(); if (!nombre) return;
-  const obj = { id: uid(), usuario: currentUser, tipo: 'bolucompra', nombre, hecho: false, fecha: new Date().toISOString().slice(0,10) };
+  const obj = { id: uid(), usuario: currentUser, tipo: 'bolucompra', nombre, hecho: false,
+    categoria: catInp?.value.trim()||null, fecha: new Date().toISOString().slice(0,10) };
   try {
     await dbInsert('personal', obj);
     S.personal.push(obj);
-    inp.value = ''; renderPersonal();
+    inp.value = ''; if(catInp) catInp.value='';
+    // Actualizar datalist
+    const cats = [...new Set(S.personal.filter(p=>p.usuario===currentUser&&p.tipo==='bolucompra'&&p.categoria).map(p=>p.categoria))];
+    const dl = document.getElementById('boluc-cat-list');
+    if(dl) dl.innerHTML = cats.map(c=>`<option value="${esc(c)}">`).join('');
+    renderPersonal();
   } catch(e) { toast('Error al guardar'); }
 }
 
@@ -4463,9 +4481,10 @@ function renderPersonal() {
         else if (proximo) proxTag = `<span style="color:#f59e0b;font-size:12px"> · Próxima en ${dias}d (${m.proximaFecha})</span>`;
         else proxTag = `<span style="color:var(--cr-muted);font-size:12px"> · Próxima: ${m.proximaFecha}</span>`;
       }
+      const catBadge = m.categoria ? `<span style="display:inline-block;background:#f0ecff;color:#6c47ff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;margin-right:4px">${esc(m.categoria)}</span>` : '';
       return `<div class="personal-item">
         <div class="personal-item-body">
-          <div class="personal-item-nombre">${esc(m.nombre)}</div>
+          <div class="personal-item-nombre">${catBadge}${esc(m.nombre)}</div>
           <div class="personal-item-sub">Realizado: ${m.fecha}${proxTag}</div>
           ${m.detalle?`<div style="font-size:12px;color:var(--cr-muted);margin-top:2px">${esc(m.detalle)}</div>`:''}
         </div>
@@ -4486,17 +4505,24 @@ function renderPersonal() {
   if (!bolucs.length) {
     bolucEl.innerHTML = '<p class="text-muted" style="padding:.5rem 0">Tu lista de bolucompras está vacía.</p>';
   } else {
-    bolucEl.innerHTML = bolucs.map(b => `
-      <div class="personal-item">
+    // Poblar datalist bolucompras
+    const bolucCats = [...new Set(bolucs.filter(b=>b.categoria).map(b=>b.categoria))];
+    const bolucDl = document.getElementById('boluc-cat-list');
+    if(bolucDl) bolucDl.innerHTML = bolucCats.map(c=>`<option value="${esc(c)}">`).join('');
+
+    bolucEl.innerHTML = bolucs.map(b => {
+      const catBadge = b.categoria ? `<span style="display:inline-block;background:#f0ecff;color:#6c47ff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;margin-right:4px">${esc(b.categoria)}</span>` : '';
+      return `<div class="personal-item">
         <input type="checkbox" ${b.hecho?'checked':''} onchange="toggleBolucompraHecho('${b.id}')"
           style="width:17px;height:17px;flex-shrink:0;cursor:pointer;margin-top:2px">
         <div class="personal-item-body" style="${b.hecho?'opacity:.45;text-decoration:line-through':''}">
-          <div class="personal-item-nombre">${esc(b.nombre)}</div>
+          <div class="personal-item-nombre">${catBadge}${esc(b.nombre)}</div>
         </div>
         <div class="personal-item-actions">
           <button class="btn-icon" onclick="eliminarPersonal('${b.id}')">🗑</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 }
 
