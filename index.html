@@ -566,12 +566,16 @@
       <div id="personal-turnos"></div>
     </div>
 
-    <!-- Mantenimiento -->
+    <!-- Asuntos personales -->
     <div class="card" style="margin-bottom:.75rem">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
         <div class="card-title" style="margin-bottom:0">📋 Asuntos personales</div>
         <button class="btn btn-sm btn-ghost" onclick="openMantenimientoModal()">+ Agregar</button>
       </div>
+      <div style="display:flex;gap:8px;margin-bottom:.5rem">
+        <input type="text" id="mant-search" placeholder="Buscar..." style="flex:1;font-size:13px" oninput="renderPersonal()">
+      </div>
+      <div id="mant-cat-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.75rem"></div>
       <div id="personal-mantenimiento"></div>
     </div>
 
@@ -585,6 +589,10 @@
         <datalist id="boluc-cat-list"></datalist>
         <button class="btn btn-sm btn-ghost" onclick="agregarBolucompra()">+ Agregar</button>
       </div>
+      <div style="display:flex;gap:8px;margin-bottom:.5rem">
+        <input type="text" id="boluc-search" placeholder="Buscar..." style="flex:1;font-size:13px" oninput="renderPersonal()">
+      </div>
+      <div id="boluc-cat-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.75rem"></div>
       <div id="personal-bolucompras"></div>
     </div>
   </div>
@@ -2433,6 +2441,9 @@ function renderNotas() {
 
 // ── SUSCRIPTOR VIP ────────────────────────────────────────────
 let subSession = null;
+let _mantCat = null, _bolucCat = null;
+function setMantCat(c)  { _mantCat  = _mantCat  === c ? null : c; renderPersonal(); }
+function setBolucCat(c) { _bolucCat = _bolucCat === c ? null : c; renderPersonal(); }
 
 function verificarSub() {
   const login=document.getElementById('sub-verify-email').value.trim().toLowerCase();
@@ -4458,7 +4469,19 @@ function renderPersonal() {
 
   // ── Mantenimiento ──
   const mantEl = document.getElementById('personal-mantenimiento');
-  const mants = mine.filter(p=>p.tipo==='mantenimiento')
+  const mantSearch = (document.getElementById('mant-search')?.value||'').toLowerCase();
+  const allMants = mine.filter(p=>p.tipo==='mantenimiento');
+  const mantCats = [...new Set(allMants.filter(m=>m.categoria).map(m=>m.categoria))].sort();
+  const mantChipsEl = document.getElementById('mant-cat-chips');
+  if (mantChipsEl) {
+    mantChipsEl.innerHTML = mantCats.length ? mantCats.map(c => {
+      const sel = _mantCat === c;
+      return `<span onclick="setMantCat('${esc(c)}')" style="cursor:pointer;display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #6c47ff;${sel?'background:#6c47ff;color:#fff':'background:#f0ecff;color:#6c47ff'}">${esc(c)}</span>`;
+    }).join('') : '';
+  }
+  const mants = allMants
+    .filter(m => (!mantSearch || m.nombre.toLowerCase().includes(mantSearch) || (m.detalle||'').toLowerCase().includes(mantSearch))
+               && (!_mantCat || m.categoria === _mantCat))
     .sort((a,b) => {
       // primero los vencidos o sin próxima, luego por proximaFecha asc
       const aVenc = a.proximaFecha && a.proximaFecha < today;
@@ -4498,7 +4521,20 @@ function renderPersonal() {
 
   // ── Bolucompras ──
   const bolucEl = document.getElementById('personal-bolucompras');
-  const bolucs = mine.filter(p=>p.tipo==='bolucompra').sort((a,b)=>{
+  const bolucSearch = (document.getElementById('boluc-search')?.value||'').toLowerCase();
+  const allBolucs = mine.filter(p=>p.tipo==='bolucompra');
+  const bolucCats = [...new Set(allBolucs.filter(b=>b.categoria).map(b=>b.categoria))].sort();
+  const bolucChipsEl = document.getElementById('boluc-cat-chips');
+  if (bolucChipsEl) {
+    bolucChipsEl.innerHTML = bolucCats.length ? bolucCats.map(c => {
+      const sel = _bolucCat === c;
+      return `<span onclick="setBolucCat('${esc(c)}')" style="cursor:pointer;display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #6c47ff;${sel?'background:#6c47ff;color:#fff':'background:#f0ecff;color:#6c47ff'}">${esc(c)}</span>`;
+    }).join('') : '';
+  }
+  const bolucs = allBolucs
+    .filter(b => (!bolucSearch || b.nombre.toLowerCase().includes(bolucSearch))
+               && (!_bolucCat || b.categoria === _bolucCat))
+    .sort((a,b)=>{
     if (a.hecho !== b.hecho) return a.hecho - b.hecho;
     return (b.fecha||'').localeCompare(a.fecha||'');
   });
