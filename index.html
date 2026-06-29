@@ -4764,17 +4764,17 @@ let _mateSeenIds = new Set();
 let _mateDestinatario = null;
 
 const MATE_TIPOS = {
-  pedir:    { emoji:'🧉', label:'Pedir mate',          msg: n => \ te está pidiendo mate 🧉 },
-  va_mate:  { emoji:'🚛', label:'Te mando el mate',    msg: n => \ te manda el mate con el camioncito 🚛 },
-  devolver: { emoji:'↩️', label:'Devolveme el mate',   msg: n => \ quiere que le devuelvas el mate ↩️ },
-  listo:    { emoji:'✅', label:'Mate listo para retirar', msg: n => \ dice que el mate está listo ✅ },
+  pedir:    { emoji:'🧉', label:'Pedir mate',              msg: n => (USERS[n.de]?.nombre||n.de) + ' te está pidiendo mate 🧉' },
+  va_mate:  { emoji:'🚛', label:'Te mando el mate',        msg: n => (USERS[n.de]?.nombre||n.de) + ' te manda el mate con el camioncito 🚛' },
+  devolver: { emoji:'↩️', label:'Devolveme el mate',       msg: n => (USERS[n.de]?.nombre||n.de) + ' quiere que le devuelvas el mate ↩️' },
+  listo:    { emoji:'✅', label:'Mate listo para retirar', msg: n => (USERS[n.de]?.nombre||n.de) + ' dice que el mate está listo ✅' },
 };
 
 function playMateSound() {
   try {
     if (!_mateAudio) _mateAudio = new Audio('data:audio/mp3;base64,' + MATE_SOUND_B64);
     _mateAudio.currentTime = 0;
-    _mateAudio.play().catch(()=>{});
+    _mateAudio.play().catch(function(){});
   } catch(e) {}
 }
 
@@ -4783,7 +4783,7 @@ function showMateBrowserNotif(notif) {
   if (!tipo) return;
   const body = tipo.msg(notif);
   if (Notification.permission === 'granted') {
-    new Notification('🧉 La Casa Radio', { body, icon: '' });
+    new Notification('🧉 La Casa Radio', { body: body, icon: '' });
   }
   playMateSound();
   toast(body);
@@ -4794,16 +4794,10 @@ async function checkMateNotifs() {
   try {
     const notifs = await dbLoad('mate_notifs');
     S.mateNotifs = notifs;
-    const nuevas = notifs.filter(n => n.para === currentUser && !_mateSeenIds.has(n.id));
-    for (const n of nuevas) {
-      _mateSeenIds.add(n.id);
-      showMateBrowserNotif(n);
-    }
-    // actualizar badge
-    const unread = notifs.filter(n => n.para === currentUser && !_mateSeenIds.has(n.id + '_old')).length;
-    const badge = document.getElementById('mate-badge');
-    if (badge) {
-      const count = notifs.filter(n => n.para === currentUser).filter(n => !_mateSeenIds.has(n.id + '_seen')).length;
+    const nuevas = notifs.filter(function(n) { return n.para === currentUser && !_mateSeenIds.has(n.id); });
+    for (var i = 0; i < nuevas.length; i++) {
+      _mateSeenIds.add(nuevas[i].id);
+      showMateBrowserNotif(nuevas[i]);
     }
     renderMateBadge();
   } catch(e) {}
@@ -4812,71 +4806,50 @@ async function checkMateNotifs() {
 function renderMateBadge() {
   const badge = document.getElementById('mate-badge');
   if (!badge || !currentUser) return;
-  // Notifs nuevas desde que se cargó la página (no en _mateSeenIds al cargar)
-  const count = S.mateNotifs.filter(n => n.para === currentUser && _mateSeenIds.has(n.id)).length;
-  // El badge muestra las que llegaron mientras estamos en la página
-  // Mejor: notifs en las últimas 2hs
   const cutoff = new Date(Date.now() - 2*3600000).toISOString();
-  const recientes = S.mateNotifs.filter(n => n.para === currentUser && n.fecha > cutoff).length;
-  if (recientes > 0) {
-    badge.textContent = recientes;
-    badge.style.display = '';
-  } else {
-    badge.style.display = 'none';
-  }
+  const recientes = S.mateNotifs.filter(function(n) { return n.para === currentUser && n.fecha > cutoff; }).length;
+  if (recientes > 0) { badge.textContent = recientes; badge.style.display = 'flex'; }
+  else { badge.style.display = 'none'; }
 }
 
 function openMateModal() {
   if (!currentUser) return;
   if (Notification.permission === 'default') Notification.requestPermission();
-  // Marcar todas las vistas
-  S.mateNotifs.forEach(n => { if (n.para === currentUser) _mateSeenIds.add(n.id); });
+  S.mateNotifs.forEach(function(n) { if (n.para === currentUser) _mateSeenIds.add(n.id); });
   renderMateModal();
   document.getElementById('mate-modal').classList.add('open');
 }
 
 function renderMateModal() {
-  const otros = Object.keys(USERS).filter(u => u !== currentUser);
+  const otros = Object.keys(USERS).filter(function(u) { return u !== currentUser; });
   if (!_mateDestinatario || !otros.includes(_mateDestinatario)) _mateDestinatario = otros[0];
 
-  // Destinatarios
-  document.getElementById('mate-destinatarios').innerHTML = otros.map(u => {
+  document.getElementById('mate-destinatarios').innerHTML = otros.map(function(u) {
     const sel = _mateDestinatario === u;
-    return <span onclick="selMateDestinatario('')" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:600;border:2px solid ;background:;color:"> </span>;
+    const bg = sel ? '#6c47ff' : '#fff';
+    const border = sel ? '#6c47ff' : '#ccc';
+    const color = sel ? '#fff' : '#555';
+    return '<span onclick="selMateDestinatario(\'' + u + '\')" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:600;border:2px solid ' + border + ';background:' + bg + ';color:' + color + '">' + avatar(u,22) + ' ' + (USERS[u]?.nombre||u) + '</span>';
   }).join('');
 
-  // Botones de acción
-  document.getElementById('mate-acciones').innerHTML = Object.entries(MATE_TIPOS).map(([tipo, t]) =>
-    <button onclick="enviarMateNotif('')" style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;border-radius:12px;border:1.5px solid var(--cr-border);background:var(--cr-card);cursor:pointer;font-size:14px;text-align:left;width:100%">
-      <span style="font-size:22px"></span>
-      <span style="font-weight:600"></span>
-    </button>
-  ).join('');
+  document.getElementById('mate-acciones').innerHTML = Object.entries(MATE_TIPOS).map(function(entry) {
+    const tipo = entry[0]; const t = entry[1];
+    return '<button onclick="enviarMateNotif(\'' + tipo + '\')" style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;border-radius:12px;border:1.5px solid var(--cr-border);background:var(--cr-card);cursor:pointer;font-size:14px;text-align:left;width:100%"><span style="font-size:22px">' + t.emoji + '</span><span style="font-weight:600">' + t.label + '</span></button>';
+  }).join('');
 
-  // Historial
-  const hist = [...S.mateNotifs]
-    .filter(n => n.de === currentUser || n.para === currentUser)
-    .sort((a,b) => b.fecha.localeCompare(a.fecha))
-    .slice(0, 15);
+  const hist = S.mateNotifs.slice().filter(function(n) { return n.de === currentUser || n.para === currentUser; })
+    .sort(function(a,b) { return b.fecha.localeCompare(a.fecha); }).slice(0, 15);
   const histEl = document.getElementById('mate-historial');
   if (!hist.length) {
     histEl.innerHTML = '<p class="text-muted" style="font-size:13px">Sin historial todavía.</p>';
   } else {
-    histEl.innerHTML = hist.map(n => {
+    histEl.innerHTML = hist.map(function(n) {
       const tipo = MATE_TIPOS[n.tipo];
       const esEnviado = n.de === currentUser;
       const otro = esEnviado ? (USERS[n.para]?.nombre||n.para) : (USERS[n.de]?.nombre||n.de);
       const hora = new Date(n.fecha).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
       const dia = new Date(n.fecha).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
-      return <div style="display:flex;align-items:center;gap:8px;padding:.4rem 0;border-bottom:.5px solid var(--cr-border);font-size:13px">
-        <span style="font-size:18px"></span>
-        <div style="flex:1">
-          <span style="font-weight:600"></span>
-          <span style="color:var(--cr-muted)"> </span>
-          <span style="color:var(--cr-muted);margin-left:4px">· </span>
-        </div>
-        <span style="font-size:11px;color:var(--cr-muted)"> </span>
-      </div>;
+      return '<div style="display:flex;align-items:center;gap:8px;padding:.4rem 0;border-bottom:.5px solid var(--cr-border);font-size:13px"><span style="font-size:18px">' + (tipo ? tipo.emoji : '🧉') + '</span><div style="flex:1"><span style="font-weight:600">' + (esEnviado ? 'Vos' : otro) + '</span><span style="color:var(--cr-muted)"> → ' + (esEnviado ? otro : 'vos') + '</span><span style="color:var(--cr-muted);margin-left:4px">· ' + (tipo ? tipo.label : n.tipo) + '</span></div><span style="font-size:11px;color:var(--cr-muted)">' + dia + ' ' + hora + '</span></div>';
     }).join('');
   }
 }
@@ -4888,13 +4861,13 @@ function selMateDestinatario(u) {
 
 async function enviarMateNotif(tipo) {
   if (!currentUser || !_mateDestinatario) return;
-  const obj = { id: uid(), de: currentUser, para: _mateDestinatario, tipo, fecha: new Date().toISOString() };
+  const obj = { id: uid(), de: currentUser, para: _mateDestinatario, tipo: tipo, fecha: new Date().toISOString() };
   try {
     await dbInsert('mate_notifs', obj);
     S.mateNotifs.push(obj);
     _mateSeenIds.add(obj.id);
     renderMateModal();
-    toast(${MATE_TIPOS[tipo]?.emoji} ¡Notificación enviada!);
+    toast((MATE_TIPOS[tipo]?.emoji||'') + ' ¡Notificación enviada!');
   } catch(e) { toast('Error al enviar'); }
 }
 (async function init() {
