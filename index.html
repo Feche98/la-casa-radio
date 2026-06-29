@@ -4813,19 +4813,26 @@ async function checkDeudaMail() {
   const grandes = deudas.filter(d => d.monto >= 100000);
   if (!grandes.length) return;
 
-  // Mandar mail a cada deudor
-  let enviados = 0;
+  // Agrupar por deudor y mandar un solo mail con todas sus deudas
+  const porDeudor = {};
   for (const d of grandes) {
-    const emailDeudor = FAMILY_EMAILS[d.de];
-    const nombreDeudor = USERS[d.de]?.nombre || d.de;
-    const nombreAcreedor = USERS[d.para]?.nombre || d.para;
-    const monto = '$' + Math.round(d.monto).toLocaleString('es-AR');
+    if (!porDeudor[d.de]) porDeudor[d.de] = [];
+    porDeudor[d.de].push(d);
+  }
+  let enviados = 0;
+  for (const [deudor, deudas] of Object.entries(porDeudor)) {
+    const emailDeudor = FAMILY_EMAILS[deudor];
+    if (!emailDeudor) continue;
+    const nombreDeudor = USERS[deudor]?.nombre || deudor;
+    const lineas = deudas.map(d => '  • $' + Math.round(d.monto).toLocaleString('es-AR') + ' a ' + (USERS[d.para]?.nombre || d.para)).join('\n');
     const cuerpo = 'Ey ' + nombreDeudor + '! 👋 Te mandamos este recordatorio con toda la buena onda 😄\n\n'
-      + 'Según La Casa Radio, le debés ' + monto + ' a ' + nombreAcreedor + '.\n\n'
+      + 'Según La Casa Radio, tenés las siguientes deudas pendientes:\n\n'
+      + lineas + '\n\n'
       + 'Cuando puedas y te venga bien, ¡saldá la deuda desde la app! 🏠✨\n\n'
       + 'Saludos de La Casa Radio 🎙️';
     try {
-      if (emailDeudor) { await enviarEmail(emailDeudor, '💸 Recordatorio de deuda — La Casa Radio', cuerpo); enviados++; }
+      await enviarEmail(emailDeudor, '💸 Recordatorio de deuda — La Casa Radio', cuerpo);
+      enviados++;
     } catch(e) { console.warn('Error enviando recordatorio deuda a', emailDeudor, e); }
   }
 
