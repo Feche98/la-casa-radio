@@ -4809,10 +4809,6 @@ async function checkDeudaMail() {
   const weekKey = now.getFullYear() + '-W' + Math.ceil((now - new Date(now.getFullYear(),0,1)) / 604800000);
   if (DB.get('deuda_notif_week') === weekKey) return;
 
-  // Solo si hay gastos de más de 7 días
-  const hayViejos = S.gastos.some(g => g.tipo === 'gasto' && diasDesde(g.fecha) >= 7);
-  if (!hayViejos) return;
-
   const deudas = deudaSimplificada(calcularBalances());
   const grandes = deudas.filter(d => d.monto >= 100000);
   if (!grandes.length) return;
