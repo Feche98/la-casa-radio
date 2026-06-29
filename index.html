@@ -628,12 +628,13 @@
     <div class="form-row">
       <div class="form-group">
         <label>¿Quién pagó?</label>
-        <select id="g-pagador">
-          <option value="feche">Feche</option>
-          <option value="rodri">Rodri</option>
-          <option value="nehue">Nehue</option>
-          <option value="civo">Civo</option>
-        </select>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px" id="g-pagadores">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;color:var(--cr-text);cursor:pointer"><input type="checkbox" value="feche" onchange="togglePagadores()" style="width:16px;height:16px"> Feche</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;color:var(--cr-text);cursor:pointer"><input type="checkbox" value="rodri" onchange="togglePagadores()" style="width:16px;height:16px"> Rodri</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;color:var(--cr-text);cursor:pointer"><input type="checkbox" value="nehue" onchange="togglePagadores()" style="width:16px;height:16px"> Nehue</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;color:var(--cr-text);cursor:pointer"><input type="checkbox" value="civo" onchange="togglePagadores()" style="width:16px;height:16px"> Civo</label>
+        </div>
+        <div id="g-pagador-montos" style="display:none;margin-top:8px"></div>
       </div>
       <div class="form-group"><label>Fecha</label><input type="date" id="g-fecha"></div>
     </div>
@@ -2873,14 +2874,14 @@ function calcularBalances() {
       bal[g.de]   += g.monto;
     } else {
       const n = g.participantes.length;
+      // cada participante debe su parte
       g.participantes.forEach(p => {
         const pct = g.porcentajes?.[p] ?? (100 / n);
-        const share = g.monto * pct / 100;
-        if (p !== g.pagador) {
-          bal[g.pagador] += share;
-          bal[p]         -= share;
-        }
+        bal[p] -= g.monto * pct / 100;
       });
+      // cada pagador recibe crédito por lo que puso
+      const pagadores = g.pagadores || { [g.pagador]: g.monto };
+      Object.entries(pagadores).forEach(([payer, paid]) => { bal[payer] += paid; });
     }
   });
   return bal;
@@ -2898,6 +2899,24 @@ function deudaSimplificada(bal) {
     if(pos[pi][1]<0.01) pi++; if(neg[ni][1]<0.01) ni++;
   }
   return txs;
+}
+
+function togglePagadores() {
+  const checked = [...document.querySelectorAll('#g-pagadores input:checked')].map(c=>c.value);
+  const montosDiv = document.getElementById('g-pagador-montos');
+  if (checked.length > 1) {
+    const total = parseFloat(document.getElementById('g-monto').value)||0;
+    const share = checked.length ? Math.round(total/checked.length*100)/100 : 0;
+    montosDiv.innerHTML = checked.map(p=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <label style="width:60px;font-weight:500;font-size:13px">${GUSERS[p]||p}</label>
+        <input type="number" id="gpag-${p}" min="0" step="0.01" value="${share}" style="width:100px;font-size:13px">
+        <span style="font-size:12px;color:var(--cr-muted)">$</span>
+      </div>`).join('');
+    montosDiv.style.display = 'block';
+  } else {
+    montosDiv.style.display = 'none';
+  }
 }
 
 function toggleDivision(val) {
@@ -2932,7 +2951,9 @@ function openGastoModal(id=null) {
   document.getElementById('g-titulo').value='';
   document.getElementById('g-monto').value='';
   document.getElementById('g-fecha').value=new Date().toISOString().slice(0,10);
-  document.getElementById('g-pagador').value=currentUser||'feche';
+  // pagador por defecto = usuario actual
+  document.querySelectorAll('#g-pagadores input').forEach(c=>{ c.checked=(c.value===(currentUser||'feche')); });
+  document.getElementById('g-pagador-montos').style.display='none';
   document.getElementById('g-categoria').value='';
   document.getElementById('g-descripcion').value='';
   document.querySelectorAll('#g-participantes input').forEach(c=>c.checked=true);
@@ -2943,10 +2964,16 @@ function openGastoModal(id=null) {
     document.getElementById('g-titulo').value=g.titulo;
     document.getElementById('g-monto').value=g.monto;
     document.getElementById('g-fecha').value=g.fecha;
-    document.getElementById('g-pagador').value=g.pagador;
     document.getElementById('g-categoria').value=g.categoria||'';
     document.getElementById('g-descripcion').value=g.descripcion||'';
     document.querySelectorAll('#g-participantes input').forEach(c=>c.checked=(g.participantes||[]).includes(c.value));
+    // restaurar pagadores (nuevo formato o viejo)
+    const pagadores = g.pagadores || { [g.pagador]: g.monto };
+    document.querySelectorAll('#g-pagadores input').forEach(c=>{ c.checked=!!pagadores[c.value]; });
+    if (Object.keys(pagadores).length > 1) {
+      togglePagadores();
+      Object.entries(pagadores).forEach(([p,v]) => { const inp=document.getElementById('gpag-'+p); if(inp) inp.value=v; });
+    }
     if (g.montos) {
       document.querySelector('input[name="g-div"][value="monto"]').checked=true;
       toggleDivision('monto');
@@ -2983,10 +3010,21 @@ async function guardarGasto() {
     porcentajes={};
     for(const p of participantes){ porcentajes[p]=Math.round(montos[p]/total*10000)/100; }
   }
+  // recolectar pagadores
+  const pagChecked = [...document.querySelectorAll('#g-pagadores input:checked')].map(c=>c.value);
+  if (!pagChecked.length) { toast('Seleccioná al menos un pagador'); return; }
+  let pagadores = {};
+  if (pagChecked.length === 1) {
+    pagadores[pagChecked[0]] = monto;
+  } else {
+    let totalPag = 0;
+    for (const p of pagChecked) { const v=parseFloat(document.getElementById('gpag-'+p)?.value||0); pagadores[p]=v; totalPag+=v; }
+    if (Math.abs(totalPag - monto) > 0.5) { toast('Los montos de los pagadores deben sumar $'+monto); return; }
+  }
   const editId=document.getElementById('g-edit-id').value;
   const obj={
     id:editId||uid(), tipo:'gasto', titulo, monto,
-    pagador:document.getElementById('g-pagador').value,
+    pagadores,
     fecha:document.getElementById('g-fecha').value,
     categoria:document.getElementById('g-categoria').value.trim(),
     descripcion:document.getElementById('g-descripcion').value.trim(),
@@ -3089,7 +3127,7 @@ function renderGastos() {
       <div class="gasto-icono">${emoji}</div>
       <div class="gasto-body">
         <div class="gasto-titulo">${esc(g.titulo)}${g.categoria?` <span class="badge" style="font-size:10px">${esc(g.categoria)}</span>`:''}</div>
-        <div class="gasto-sub">Pagó ${GUSERS[g.pagador]||g.pagador} · ${fmtDate(g.fecha)} · ${partsStr} (${shareStr})</div>
+        <div class="gasto-sub">Pagó ${g.pagadores?Object.keys(g.pagadores).map(p=>GUSERS[p]||p).join(' y '):(GUSERS[g.pagador]||g.pagador)} · ${fmtDate(g.fecha)} · ${partsStr} (${shareStr})</div>
         ${g.descripcion?`<div class="gasto-sub">${esc(g.descripcion)}</div>`:''}
       </div>
       <div style="text-align:right">
