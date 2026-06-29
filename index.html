@@ -1165,7 +1165,14 @@
 <div class="modal-overlay" id="contactos-modal">
   <div class="modal" style="max-width:520px">
     <h3>👥 Contactos</h3>
-    <p style="font-size:13px;color:var(--cr-muted);margin-bottom:1rem">Suscriptores registrados. Podés asignarles grupos para invitarlos a eventos.</p>
+    <div style="margin-bottom:1rem">
+      <div style="font-size:13px;color:var(--cr-muted);margin-bottom:.75rem">Creá grupos y asignáselos a los suscriptores para invitarlos a eventos.</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="nuevo-grupo-global" placeholder="Nombre del nuevo grupo..." style="flex:1;border:1px solid #ccc;border-radius:8px;padding:6px 12px;font-size:13px;color:#333;background:#fff;outline:none"
+          onkeydown="if(event.key==='Enter') crearGrupoGlobal()">
+        <button onclick="crearGrupoGlobal()" style="background:#6c47ff;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap">+ Crear grupo</button>
+      </div>
+    </div>
     <div id="contactos-list" style="margin-bottom:1rem"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('contactos-modal')">Cerrar</button>
@@ -3069,11 +3076,7 @@ function renderContactosList() {
       <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
         ${grupos.map(g => `<span style="${chipStyle}" onclick="quitarGrupo('${s.id}','${esc(g)}')">${esc(g)} ✕</span>`).join('')}
         ${gruposDisponibles.map(g => `<span style="${chipDisp}" onclick="agregarGrupo('${s.id}','${esc(g)}')" title="Agregar al grupo ${esc(g)}">+ ${esc(g)}</span>`).join('')}
-      </div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <input type="text" id="gi-${s.id}" placeholder="Nuevo grupo..." style="border:1px solid #ccc;border-radius:8px;padding:4px 10px;font-size:12px;width:140px;outline:none;color:#333;background:#fff"
-          onkeydown="if(event.key==='Enter'){addGrupoFromInput('${s.id}')}">
-        <button onclick="addGrupoFromInput('${s.id}')" style="background:#6c47ff;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:600">+ Agregar</button>
+        ${!grupos.length && !gruposDisponibles.length ? `<span style="font-size:12px;color:#999">Sin grupos — creá uno arriba</span>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -3099,10 +3102,25 @@ async function quitarGrupo(susId, grupo) {
   try { await dbUpdate('suscriptores', s); renderContactosList(); } catch(e) { toast('Error al guardar'); }
 }
 
+function getGruposGlobales() {
+  try { return JSON.parse(localStorage.getItem('grupos_globales')||'[]'); } catch { return []; }
+}
+
 function todosLosGrupos() {
-  const gs = new Set();
+  const gs = new Set(getGruposGlobales());
   S.suscriptores.forEach(s => (s.grupos||[]).forEach(g => gs.add(g)));
   return [...gs].sort();
+}
+
+function crearGrupoGlobal() {
+  const inp = document.getElementById('nuevo-grupo-global');
+  const val = inp?.value.trim(); if (!val) return;
+  const actuales = getGruposGlobales();
+  if (!actuales.includes(val)) {
+    localStorage.setItem('grupos_globales', JSON.stringify([...actuales, val]));
+  }
+  inp.value = '';
+  renderContactosList();
 }
 
 // ── INVITACIÓN ──────────────────────────────────────────────────
