@@ -537,7 +537,7 @@
         <button class="btn btn-sm btn-ghost" onclick="openPersonalModal('recordatorio')">📅 Recordatorio</button>
         <button class="btn btn-sm btn-ghost" onclick="openPersonalModal('tarea')">☑ Tarea</button>
         <button class="btn btn-sm btn-ghost" onclick="openPersonalModal('habito')">🔁 Hábito</button>
-        <button class="btn btn-sm btn-ghost" onclick="openMantenimientoModal()">🔧 Mantenimiento</button>
+        <button class="btn btn-sm btn-ghost" onclick="openMantenimientoModal()">📋 Asuntos personales</button>
         <button class="btn btn-sm btn-ghost" onclick="focusBolucompraInput()">🛍️ Bolucompras</button>
       </div>
     </div>
@@ -569,7 +569,7 @@
     <!-- Mantenimiento -->
     <div class="card" style="margin-bottom:.75rem">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-        <div class="card-title" style="margin-bottom:0">🔧 Mantenimiento</div>
+        <div class="card-title" style="margin-bottom:0">📋 Asuntos personales</div>
         <button class="btn btn-sm btn-ghost" onclick="openMantenimientoModal()">+ Agregar</button>
       </div>
       <div id="personal-mantenimiento"></div>
@@ -964,7 +964,7 @@
 <!-- MODAL MANTENIMIENTO -->
 <div class="modal-overlay" id="mantenimiento-modal">
   <div class="modal" style="max-width:460px">
-    <h3 id="mant-modal-title">🔧 Registrar mantenimiento</h3>
+    <h3 id="mant-modal-title">📋 Nuevo asunto personal</h3>
     <div class="form-group"><label>¿Qué hiciste?</label><input type="text" id="mant-nombre" placeholder="Ej: Cambio de aceite, Estudios médicos..."></div>
     <div class="form-row">
       <div class="form-group"><label>Fecha en que lo hiciste</label><input type="date" id="mant-fecha"></div>
@@ -4183,7 +4183,7 @@ async function togglePersonalHecho(id) {
     renderPersonal();
     if (item.tipo === 'recordatorio' && item.hecho) {
       setTimeout(() => confirmDlg(
-        `¿Guardás "${item.nombre}" en el historial de mantenimiento?`,
+        `¿Guardás "${item.nombre}" en Asuntos personales?`,
         () => openMantenimientoModal(null, item.nombre)
       ), 300);
     }
@@ -4229,7 +4229,7 @@ async function eliminarPersonal(id) {
 // ── MANTENIMIENTO ─────────────────────────────────────────────
 function openMantenimientoModal(id=null, preNombre='') {
   document.getElementById('mant-edit-id').value = id||'';
-  document.getElementById('mant-modal-title').textContent = id ? '🔧 Editar registro' : '🔧 Registrar mantenimiento';
+  document.getElementById('mant-modal-title').textContent = id ? '📋 Editar asunto' : '📋 Nuevo asunto personal';
   document.getElementById('mant-nombre').value = '';
   document.getElementById('mant-fecha').value = new Date().toISOString().slice(0,10);
   document.getElementById('mant-proxima').value = '';
@@ -4266,7 +4266,7 @@ async function guardarMantenimiento() {
       await dbInsert('personal', obj);
       S.personal.push(obj);
     }
-    closeModal('mantenimiento-modal'); renderPersonal(); toast('✅ Guardado en mantenimiento');
+    closeModal('mantenimiento-modal'); renderPersonal(); toast('✅ Guardado en asuntos personales');
   } catch(e) { toast('Error al guardar'); }
 }
 
@@ -4451,7 +4451,7 @@ function renderPersonal() {
       return (a.proximaFecha||'').localeCompare(b.proximaFecha||'');
     });
   if (!mants.length) {
-    mantEl.innerHTML = '<p class="text-muted" style="padding:.5rem 0">Sin registros todavía. Usá el botón + Agregar.</p>';
+    mantEl.innerHTML = '<p class="text-muted" style="padding:.5rem 0">Sin asuntos registrados todavía.</p>';
   } else {
     mantEl.innerHTML = mants.map(m => {
       const vencido = m.proximaFecha && m.proximaFecha < today;
