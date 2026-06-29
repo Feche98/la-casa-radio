@@ -4810,7 +4810,7 @@ function renderMateBadge() {
   const badge = document.getElementById('mate-badge');
   if (!badge || !currentUser) return;
   const cutoff = new Date(Date.now() - 2*3600000).toISOString();
-  const recientes = S.mateNotifs.filter(function(n) { return n.para === currentUser && n.fecha > cutoff; }).length;
+  const recientes = S.mateNotifs.filter(function(n) { return n.para === currentUser && n.fecha > cutoff && !_mateSeenIds.has(n.id); }).length;
   if (recientes > 0) { badge.textContent = recientes; badge.style.display = 'flex'; }
   else { badge.style.display = 'none'; }
 }
@@ -4819,6 +4819,7 @@ function openMateModal() {
   if (!currentUser) return;
   if (Notification.permission === 'default') Notification.requestPermission();
   S.mateNotifs.forEach(function(n) { if (n.para === currentUser) _mateSeenIds.add(n.id); });
+  renderMateBadge();
   renderMateModal();
   document.getElementById('mate-modal').classList.add('open');
 }
