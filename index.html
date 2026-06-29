@@ -405,7 +405,7 @@
       <div class="card">
         <div class="section-header" style="margin-bottom:1rem">
           <h2>🔒 Sala VIP</h2>
-          <span class="badge badge-vip">Solo suscriptores</span>
+          <span class="badge badge-vip">Solo amigos</span>
         </div>
         <div id="vip-feed"></div>
       </div>
@@ -512,7 +512,7 @@
       <h2>Votaciones</h2>
       <button class="btn btn-primary btn-sm" onclick="openVotacionModal()">+ Nueva votación</button>
     </div>
-    <p class="text-muted" style="margin-bottom:1rem">Los suscriptores votan desde la Sala VIP. Todos pueden ver los resultados.</p>
+    <p class="text-muted" style="margin-bottom:1rem">Los amigos votan desde la Sala VIP. Todos pueden ver los resultados.</p>
     <div id="votaciones-priv"></div>
   </div>
 
@@ -737,7 +737,7 @@
       <label>Visibilidad</label>
       <select id="vot-visibilidad">
         <option value="publica">🌐 Pública — visible para todos</option>
-        <option value="suscriptores">⭐ Solo suscriptores</option>
+        <option value="suscriptores">⭐ Solo amigos</option>
       </select>
     </div>
     <div class="modal-footer">
@@ -778,12 +778,12 @@
       <label>Visibilidad</label>
       <select id="news-visibilidad" onchange="toggleAdelantoOpts(this.value)">
         <option value="publico">🌐 Público — visible para todos</option>
-        <option value="vip">🔒 Solo suscriptores (Sala VIP)</option>
-        <option value="adelanto">⏰ Adelanto — suscriptores lo ven antes</option>
+        <option value="vip">🔒 Solo amigos (Sala VIP)</option>
+        <option value="adelanto">⏰ Adelanto — amigos lo ven antes</option>
       </select>
     </div>
     <div id="news-adelanto-opts" style="display:none" class="form-group">
-      <label>¿Cuántos días antes lo ven los suscriptores?</label>
+      <label>¿Cuántos días antes lo ven los amigos?</label>
       <input type="number" id="news-dias-adelanto" value="1" min="1" max="30">
     </div>
     <div class="form-row">
@@ -939,28 +939,28 @@
   </div>
 </div>
 
-<!-- MODAL SUSCRIPTORES -->
+<!-- MODAL AMIGOS -->
 <div class="modal-overlay" id="sub-modal">
   <div class="modal" style="max-width:400px">
-    <h3>⭐ Suscriptores</h3>
+    <h3>👋 Amigos</h3>
     <div class="sub-modal-tabs">
       <button class="sub-modal-tab active" id="tab-login-btn" onclick="switchSubTab('login')">Iniciar sesión</button>
-      <button class="sub-modal-tab" id="tab-register-btn" onclick="switchSubTab('register')">Suscribirme</button>
+      <button class="sub-modal-tab" id="tab-register-btn" onclick="switchSubTab('register')">Hacerme amigo/a</button>
     </div>
     <!-- Login panel -->
     <div class="sub-panel active" id="sub-panel-login">
-      <input type="email" id="sub-verify-email" placeholder="tu@email.com">
+      <input type="text" id="sub-verify-email" placeholder="Tu nombre o email">
       <input type="password" id="sub-verify-pwd" placeholder="Tu contraseña">
       <div id="sub-verify-err" style="font-size:12px;color:var(--cr-danger);display:none"></div>
-      <button class="btn btn-primary" onclick="verificarSub()">Entrar al VIP ⭐</button>
+      <button class="btn btn-primary" onclick="verificarSub()">Entrar ⭐</button>
     </div>
     <!-- Register panel -->
     <div class="sub-panel" id="sub-panel-register">
       <input type="text" id="sub-nombre" placeholder="Tu nombre o apodo">
-      <input type="email" id="sub-email" placeholder="tu@email.com">
+      <input type="text" id="sub-email" placeholder="Email (opcional)">
       <input type="password" id="sub-password" placeholder="Elegí una contraseña (mín. 4 caracteres)">
       <div id="sub-register-err" style="font-size:12px;color:var(--cr-danger);display:none"></div>
-      <button class="btn btn-yellow" onclick="subscribir()">Suscribirme</button>
+      <button class="btn btn-yellow" onclick="subscribir()">¡Soy amigo/a! 👋</button>
     </div>
     <div class="modal-footer" style="margin-top:.5rem">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('sub-modal')">Cerrar</button>
@@ -1167,7 +1167,7 @@
   <div class="modal" style="max-width:520px">
     <h3>👥 Contactos</h3>
     <div style="margin-bottom:1rem">
-      <div style="font-size:13px;color:var(--cr-muted);margin-bottom:.75rem">Creá grupos y asignáselos a los suscriptores para invitarlos a eventos.</div>
+      <div style="font-size:13px;color:var(--cr-muted);margin-bottom:.75rem">Creá grupos y asignáselos a los amigos para invitarlos a eventos.</div>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="text" id="nuevo-grupo-global" placeholder="Nombre del nuevo grupo..." style="flex:1;border:1px solid #ccc;border-radius:8px;padding:6px 12px;font-size:13px;color:#333;background:#fff;outline:none"
           onkeydown="if(event.key==='Enter') crearGrupoGlobal()">
@@ -1437,7 +1437,7 @@ async function notificarSuscriptores(titulo, cuerpo) {
       enviados++;
     } catch(e) { console.warn('Error enviando a', s.email, e); }
   }
-  if (enviados > 0) toast(`📧 Notificación enviada a ${enviados} suscriptor${enviados>1?'es':''}`);
+  if (enviados > 0) toast(`📧 Notificación enviada a ${enviados} amigo${enviados>1?'s':''}`);
 }
 
 // ── USUARIOS ──────────────────────────────────────────────────
@@ -1624,7 +1624,7 @@ function renderNewsFeed() {
       return `
         <div class="news-item">
           <div class="news-meta">${authorEl}<span class="badge badge-adelanto">⏰ Disponible el ${fmtDateShort(n.publicoDesde)}</span>${currentUser?`<button class="btn-icon" onclick="eliminarNews('${n.id}')" style="margin-left:auto">🗑</button>`:''}</div>
-          <div class="locked-post">🔒 <strong>${esc(n.titulo)}</strong> — los suscriptores ya pueden verlo</div>
+          <div class="locked-post">🔒 <strong>${esc(n.titulo)}</strong> — los amigos ya pueden verlo</div>
         </div>`;
     }
     return `
@@ -1651,22 +1651,24 @@ async function subscribir() {
   const email=document.getElementById('sub-email').value.trim().toLowerCase();
   const password=document.getElementById('sub-password').value;
   const err=document.getElementById('sub-register-err');
-  if (!nombre) { err.textContent='Ingresá tu nombre'; err.style.display=''; return; }
-  if (!email||!email.includes('@')) { err.textContent='Ingresá un email válido'; err.style.display=''; return; }
+  if (!nombre) { err.textContent='Ingresá tu nombre o apodo'; err.style.display=''; return; }
   if (!password||password.length<4) { err.textContent='La contraseña debe tener al menos 4 caracteres'; err.style.display=''; return; }
-  if (S.suscriptores.find(s=>s.email.toLowerCase()===email)) { err.textContent='Este email ya está suscripto — iniciá sesión'; err.style.display=''; return; }
+  if (email && !email.includes('@')) { err.textContent='El email no es válido'; err.style.display=''; return; }
+  if (email && S.suscriptores.find(s=>s.email&&s.email.toLowerCase()===email)) { err.textContent='Este email ya está registrado — iniciá sesión'; err.style.display=''; return; }
+  if (!email && S.suscriptores.find(s=>s.nombre.toLowerCase()===nombre.toLowerCase())) { err.textContent='Este nombre ya está en uso — elegí otro'; err.style.display=''; return; }
   err.style.display='none';
-  const obj={id:uid(),nombre,email,password,fecha:new Date().toISOString()};
+  const id=uid();
+  const obj={id,nombre,email,password,fecha:new Date().toISOString()};
   try {
     await dbInsert('suscriptores', obj);
     S.suscriptores.push(obj);
-    subSession={email, nombre};
+    subSession={id, email, nombre};
     DB.set('sub_session',subSession);
     closeModal('sub-modal');
     updateSubUI(); renderNewsFeed(); renderVipFeed(); renderVotacionesPub();
-    toast(`¡Bienvenido/a, ${nombre}! Ya estás suscripto/a ⭐`);
-    notificarFamilia('⭐ Nuevo suscriptor en La Casa Radio', `${nombre} (${email}) se acaba de suscribir a La Casa Radio.`);
-  } catch(e) { err.textContent='Error al suscribirse, intentá de nuevo'; err.style.display=''; }
+    toast(`¡Bienvenido/a, ${nombre}! 👋`);
+    notificarFamilia('👋 Nuevo amigo en La Casa Radio', `${nombre}${email?' ('+email+')':''} se acaba de unir a La Casa Radio.`);
+  } catch(e) { err.textContent='Error al registrarse, intentá de nuevo'; err.style.display=''; }
 }
 
 // ── TAREAS ────────────────────────────────────────────────────
@@ -2388,16 +2390,19 @@ function renderNotas() {
 let subSession = null;
 
 function verificarSub() {
-  const email=document.getElementById('sub-verify-email').value.trim().toLowerCase();
+  const login=document.getElementById('sub-verify-email').value.trim().toLowerCase();
   const pwd=document.getElementById('sub-verify-pwd').value;
   const err=document.getElementById('sub-verify-err');
-  if (!email) { err.textContent='Ingresá tu email'; err.style.display=''; return; }
+  if (!login) { err.textContent='Ingresá tu nombre o email'; err.style.display=''; return; }
   if (!pwd) { err.textContent='Ingresá tu contraseña'; err.style.display=''; return; }
-  const found=S.suscriptores.find(s=>s.email.toLowerCase()===email);
-  if (!found) { err.textContent='Email no encontrado — ¿te suscribiste?'; err.style.display=''; return; }
+  const found=S.suscriptores.find(s=>
+    (s.email&&s.email.toLowerCase()===login) ||
+    s.nombre.toLowerCase()===login
+  );
+  if (!found) { err.textContent='Usuario no encontrado — ¿ya te registraste?'; err.style.display=''; return; }
   if (found.password && found.password !== pwd) { err.textContent='Contraseña incorrecta'; err.style.display=''; return; }
   err.style.display='none';
-  subSession={email, nombre: found.nombre || email.split('@')[0]};
+  subSession={id: found.id, email: found.email||'', nombre: found.nombre};
   DB.set('sub_session',subSession);
   closeModal('sub-modal');
   updateSubUI(); renderNewsFeed(); renderVipFeed(); renderVotacionesPub();
@@ -2436,7 +2441,7 @@ function updateSubUI() {
       <button class="btn-logout" onclick="cerrarSesionSub()" style="margin-left:6px">Salir</button>`;
     if (vipSection) vipSection.style.display='';
   } else {
-    area.innerHTML = `<button class="btn-sub" onclick="openSubModal()">⭐ Suscriptores</button>`;
+    area.innerHTML = `<button class="btn-sub" onclick="openSubModal()">👋 Amigos</button>`;
     if (vipSection) vipSection.style.display='none';
   }
 }
@@ -2502,8 +2507,8 @@ async function guardarVotacion() {
 async function votar(id, opIdx) {
   if (!subSession) return;
   const v=S.votaciones.find(v=>v.id===id); if(!v||!v.activa) return;
-  const email=subSession.email;
-  if (v.votos[email]===opIdx) { delete v.votos[email]; } else { v.votos[email]=opIdx; }
+  const voteKey=subSession.email||subSession.id;
+  if (v.votos[voteKey]===opIdx) { delete v.votos[voteKey]; } else { v.votos[voteKey]=opIdx; }
   try { await dbUpdate('votaciones', v); renderVotacionesPub(); renderVotacionesPriv(); }
   catch(e) { toast('Error al votar'); }
 }
@@ -2526,17 +2531,18 @@ function eliminarVotacion(id) {
   });
 }
 
-function nombreDeSub(email) {
-  const s=S.suscriptores.find(s=>s.email.toLowerCase()===email.toLowerCase());
-  return s?.nombre || email.split('@')[0];
+function nombreDeAmigo(key) {
+  const s=S.suscriptores.find(s=>(s.email&&s.email.toLowerCase()===key.toLowerCase())||s.id===key);
+  return s?.nombre || (key.includes('@')?key.split('@')[0]:key);
 }
 
 function votacionHTML(v, canVote, showVoters=false) {
   const totalVotos=Object.keys(v.votos).length;
-  const myVote=subSession?v.votos[subSession.email]:undefined;
+  const voteKey=subSession?(subSession.email||subSession.id):null;
+  const myVote=voteKey?v.votos[voteKey]:undefined;
   const conteos=v.opciones.map((_,i)=>Object.values(v.votos).filter(x=>x===i).length);
   const visBadge=v.visibilidad==='suscriptores'
-    ?`<span class="badge badge-vip" style="font-size:11px">⭐ Solo suscriptores</span>`
+    ?`<span class="badge badge-vip" style="font-size:11px">⭐ Solo amigos</span>`
     :`<span class="badge" style="font-size:11px">🌐 Pública</span>`;
   return `
     <div class="poll-card">
@@ -2547,9 +2553,9 @@ function votacionHTML(v, canVote, showVoters=false) {
         const pct=totalVotos?Math.round(conteos[i]/totalVotos*100):0;
         const isMyVote=myVote===i;
         // voters for this option
-        const voterEmails=Object.entries(v.votos).filter(([,idx])=>idx===i).map(([email])=>email);
-        const votersHTML=voterEmails.length
-          ?`<div style="font-size:11px;color:var(--cr-muted);margin-top:3px;padding-left:2px">${voterEmails.map(e=>nombreDeSub(e)).join(', ')}</div>`
+        const voterKeys=Object.entries(v.votos).filter(([,idx])=>idx===i).map(([k])=>k);
+        const votersHTML=voterKeys.length
+          ?`<div style="font-size:11px;color:var(--cr-muted);margin-top:3px;padding-left:2px">${voterKeys.map(k=>nombreDeAmigo(k)).join(', ')}</div>`
           :'';
         return `
           <div class="poll-opt">
@@ -2623,7 +2629,7 @@ async function agregarComentario(newsId) {
   if (!subSession) return;
   const inp = document.getElementById('cmt-'+newsId);
   const texto = inp?.value.trim(); if (!texto) return;
-  const obj = { id:uid(), newsId, email:subSession.email, nombre:subSession.nombre||subSession.email, texto, fecha:new Date().toISOString() };
+  const obj = { id:uid(), newsId, email:subSession.email||'', nombre:subSession.nombre||subSession.email||'Amigo/a', texto, fecha:new Date().toISOString() };
   try {
     await dbInsert('comentarios', obj);
     S.comentarios.push(obj);
@@ -2658,9 +2664,9 @@ function getAlerts() {
     if (dias <= 2) alerts.tareas.push({ nombre: t.nombre, dias });
   });
 
-  // Suscriptores nuevos desde último visto
+  // Amigos nuevos desde último visto
   const lastSeen = DB.get('notif_seen_' + currentUser) || '1970-01-01T00:00:00.000Z';
-  S.suscriptores.filter(s => s.fecha > lastSeen).forEach(s => alerts.subs.push({ email: s.email, fecha: s.fecha }));
+  S.suscriptores.filter(s => s.fecha > lastSeen).forEach(s => alerts.subs.push({ nombre: s.nombre, email: s.email, fecha: s.fecha }));
 
   // Deudas con gastos de más de 2 semanas
   const _deudas = deudaSimplificada(calcularBalances());
@@ -2725,8 +2731,8 @@ function openNotificaciones() {
 
   if (alerts.subs.length) {
     parts.push(`<div class="notif-section">
-      <div class="notif-section-title">Nuevos suscriptores</div>
-      ${alerts.subs.map(s => `<div class="notif-item"><div class="notif-icon">⭐</div><div class="notif-text"><div class="notif-title">${esc(s.email)}</div><div class="notif-sub">Se suscribió el ${fmtDate(s.fecha)}</div></div></div>`).join('')}
+      <div class="notif-section-title">Nuevos amigos</div>
+      ${alerts.subs.map(s => `<div class="notif-item"><div class="notif-icon">👋</div><div class="notif-text"><div class="notif-title">${esc(s.nombre||s.email)}</div><div class="notif-sub">Se unió el ${fmtDate(s.fecha)}</div></div></div>`).join('')}
     </div>`);
   }
 
@@ -2755,8 +2761,8 @@ async function enviarResumenFamilia() {
     alerts.stock.forEach(s => lineas.push(`  • ${s.nombre} — ${s.nivel}`));
   }
   if (alerts.subs.length) {
-    lineas.push('⭐ NUEVOS SUSCRIPTORES:');
-    alerts.subs.forEach(s => lineas.push(`  • ${s.email}`));
+    lineas.push('👋 NUEVOS AMIGOS:');
+    alerts.subs.forEach(s => lineas.push(`  • ${s.nombre||s.email}`));
   }
   if (!lineas.length) { toast('No hay alertas para enviar'); return; }
   toast('Enviando mails...');
@@ -3082,7 +3088,7 @@ function openContactosModal() {
 function renderContactosList() {
   const el = document.getElementById('contactos-list');
   if (!S.suscriptores.length) {
-    el.innerHTML = '<p class="text-muted">No hay suscriptores registrados todavía.</p>';
+    el.innerHTML = '<p class="text-muted">No hay amigos registrados todavía.</p>';
     return;
   }
   const todosGrupos = todosLosGrupos();
