@@ -4820,16 +4820,23 @@ function renderMateBadge() {
 }
 
 async function pedirPermisoNotif() {
-  const result = await Notification.requestPermission();
-  const banner = document.getElementById('mate-notif-banner');
-  if (result === 'granted') { if (banner) banner.style.display = 'none'; toast('✅ Notificaciones activadas'); }
-  else { if (banner) banner.querySelector('span').textContent = '🔕 Permiso denegado. Habilitalo desde el candado en la barra de dirección.'; }
+  try {
+    const result = await Notification.requestPermission();
+    const banner = document.getElementById('mate-notif-banner');
+    if (result === 'granted') { if (banner) banner.style.display = 'none'; toast('✅ Notificaciones activadas'); }
+    else { if (banner) banner.querySelector('span').textContent = '🔕 Permiso denegado. Habilitalo desde el candado en la barra de dirección.'; }
+  } catch(e) { toast('Tu navegador no soporta notificaciones'); }
 }
 
 function openMateModal() {
   if (!currentUser) return;
   const banner = document.getElementById('mate-notif-banner');
-  if (banner) banner.style.display = (Notification.permission !== 'granted') ? 'flex' : 'none';
+  if (banner) {
+    try {
+      const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'denied';
+      banner.style.display = perm !== 'granted' ? 'flex' : 'none';
+    } catch(e) { banner.style.display = 'flex'; }
+  }
   S.mateNotifs.forEach(function(n) { if (n.para === currentUser) _mateSeenIds.add(n.id); });
   renderMateBadge();
   renderMateModal();
