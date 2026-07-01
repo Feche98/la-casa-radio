@@ -469,7 +469,29 @@
       <h2>Tareas del hogar</h2>
       <button class="btn btn-primary btn-sm" onclick="openTareaModal()">+ Nueva tarea</button>
     </div>
-    <div class="card"><div id="tareas-list"></div></div>
+    <div class="card">
+      <div style="display:flex;gap:8px;margin-bottom:.5rem;flex-wrap:wrap">
+        <input type="text" id="tarea-search" placeholder="Buscar..." style="flex:1;min-width:120px;font-size:13px" oninput="renderTareas()">
+        <select id="tarea-filter-cat" style="font-size:13px" onchange="renderTareas()">
+          <option value="">Todas las categorías</option>
+          <option value="limpieza">Limpieza</option>
+          <option value="mantenimiento">Mantenimiento</option>
+          <option value="cocina">Cocina</option>
+          <option value="jardin">Jardín</option>
+          <option value="compras">Compras</option>
+          <option value="otro">Otro</option>
+        </select>
+        <select id="tarea-filter-sector" style="font-size:13px" onchange="renderTareas()">
+          <option value="">Todos los sectores</option>
+        </select>
+        <select id="tarea-filter-estado" style="font-size:13px" onchange="renderTareas()">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendientes / vencidas</option>
+          <option value="ok">Al día</option>
+        </select>
+      </div>
+      <div id="tareas-list"></div>
+    </div>
     <div id="turnos-subsection"></div>
   </div>
 
@@ -1834,8 +1856,30 @@ function eliminarTarea(id) {
 }
 
 function renderTareas() {
-  const tareas=S.tareas;
   const el=document.getElementById('tareas-list');
+  // actualizar datalist de sectores en el filtro
+  const sectorSel = document.getElementById('tarea-filter-sector');
+  if (sectorSel) {
+    const sectores = [...new Set(S.tareas.filter(t=>t.sector).map(t=>t.sector))].sort();
+    const cur = sectorSel.value;
+    sectorSel.innerHTML = '<option value="">Todos los sectores</option>' + sectores.map(s=>`<option value="${esc(s)}"${s===cur?' selected':''}>${esc(s)}</option>`).join('');
+  }
+  const search = (document.getElementById('tarea-search')?.value||'').toLowerCase();
+  const filterCat = document.getElementById('tarea-filter-cat')?.value||'';
+  const filterSector = document.getElementById('tarea-filter-sector')?.value||'';
+  const filterEstado = document.getElementById('tarea-filter-estado')?.value||'';
+  let tareas = S.tareas.filter(t => {
+    if (filterCat && t.cat !== filterCat) return false;
+    if (filterSector && t.sector !== filterSector) return false;
+    if (search && !t.nombre.toLowerCase().includes(search) && !(t.notas||'').toLowerCase().includes(search) && !(t.sector||'').toLowerCase().includes(search)) return false;
+    if (filterEstado) {
+      const dias = diasHastaVence(t);
+      const pendiente = t.freq===0 ? dias===-9999 : dias<3;
+      if (filterEstado==='pendiente' && !pendiente) return false;
+      if (filterEstado==='ok' && pendiente) return false;
+    }
+    return true;
+  });
   if (!tareas.length) { el.innerHTML='<div class="empty-state"><div class="ei">✅</div><p>No hay tareas cargadas.</p></div>'; }
   else {
   const sorted=[...tareas].sort((a,b)=>diasHastaVence(a)-diasHastaVence(b));
