@@ -864,20 +864,26 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Frecuencia</label>
-        <select id="tarea-freq">
-          <option value="1">Todos los días</option>
-          <option value="2">Cada 2 días</option>
-          <option value="3">Cada 3 días</option>
-          <option value="7">Semanal</option>
-          <option value="14">Quincenal</option>
-          <option value="30">Mensual</option>
-          <option value="60">Cada 2 meses</option>
-          <option value="90">Trimestral</option>
-          <option value="180">Semestral</option>
-          <option value="365">Anual</option>
-        </select>
+        <label>Sector (opcional)</label>
+        <input type="text" id="tarea-sector" placeholder="Ej: Baño, Cocina, Patio..." list="tarea-sector-list">
+        <datalist id="tarea-sector-list"></datalist>
       </div>
+    </div>
+    <div class="form-group">
+      <label>Frecuencia</label>
+      <select id="tarea-freq">
+        <option value="0">De una vez (no se repite)</option>
+        <option value="1">Todos los días</option>
+        <option value="2">Cada 2 días</option>
+        <option value="3">Cada 3 días</option>
+        <option value="7">Semanal</option>
+        <option value="14">Quincenal</option>
+        <option value="30">Mensual</option>
+        <option value="60">Cada 2 meses</option>
+        <option value="90">Trimestral</option>
+        <option value="180">Semestral</option>
+        <option value="365">Anual</option>
+      </select>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -944,20 +950,22 @@
     <div class="form-row">
       <div class="form-group">
         <label>Unidad</label>
-        <select id="stock-unidad">
-          <option value="">— Sin unidad —</option>
-          <option value="kg">kg (kilogramos)</option>
-          <option value="g">g (gramos)</option>
-          <option value="L">L (litros)</option>
-          <option value="ml">ml (mililitros)</option>
-          <option value="u">u (unidades)</option>
-          <option value="paq">paq (paquetes)</option>
-          <option value="docena">docena</option>
-          <option value="lata">lata</option>
-          <option value="atado">atado</option>
-          <option value="sobre">sobre</option>
-          <option value="botella">botella</option>
-        </select>
+        <input type="text" id="stock-unidad" placeholder="Ej: kg, u, botella..." list="stock-unidad-list">
+        <datalist id="stock-unidad-list">
+          <option value="kg">
+          <option value="g">
+          <option value="L">
+          <option value="ml">
+          <option value="u">
+          <option value="paq">
+          <option value="docena">
+          <option value="lata">
+          <option value="atado">
+          <option value="sobre">
+          <option value="botella">
+          <option value="frasco">
+          <option value="maple">
+        </datalist>
       </div>
       <div class="form-group" style="display:flex;align-items:center;gap:10px;padding-top:22px">
         <input type="checkbox" id="stock-perecedero" style="width:18px;height:18px;flex-shrink:0;cursor:pointer">
@@ -1756,11 +1764,15 @@ async function subscribir() {
 function openTareaModal(id=null) {
   document.getElementById('tarea-edit-id').value=id||'';
   document.getElementById('tarea-modal-title').textContent=id?'Editar tarea':'Nueva tarea';
+  // poblar datalist de sectores existentes
+  const sectores = [...new Set(S.tareas.filter(t=>t.sector).map(t=>t.sector))];
+  document.getElementById('tarea-sector-list').innerHTML = sectores.map(s=>`<option value="${esc(s)}">`).join('');
   if (id) {
     const t=S.tareas.find(t=>t.id===id); if(!t) return;
     document.getElementById('tarea-nombre').value=t.nombre;
     document.getElementById('tarea-cat').value=t.cat;
     document.getElementById('tarea-freq').value=t.freq;
+    document.getElementById('tarea-sector').value=t.sector||'';
     document.getElementById('tarea-asignada').value=t.asignadoA||'';
     document.getElementById('tarea-notas').value=t.notas||'';
     const last=t.historial?.[0];
@@ -1770,6 +1782,7 @@ function openTareaModal(id=null) {
     document.getElementById('tarea-nombre').value='';
     document.getElementById('tarea-cat').value='limpieza';
     document.getElementById('tarea-freq').value='7';
+    document.getElementById('tarea-sector').value='';
     document.getElementById('tarea-asignada').value='';
     document.getElementById('tarea-notas').value='';
     document.getElementById('tarea-fecha').value=new Date().toISOString().slice(0,10);
@@ -1789,7 +1802,7 @@ async function guardarTarea() {
   if (fecha&&quien&&(!historial.length||historial[0].fecha!==fecha||historial[0].quien!==quien)) {
     historial=[{quien,fecha},...historial].slice(0,10);
   }
-  const obj={id:editId||uid(),nombre,cat:document.getElementById('tarea-cat').value,freq:parseInt(document.getElementById('tarea-freq').value),asignadoA:document.getElementById('tarea-asignada').value,notas:document.getElementById('tarea-notas').value.trim(),historial};
+  const obj={id:editId||uid(),nombre,cat:document.getElementById('tarea-cat').value,freq:parseInt(document.getElementById('tarea-freq').value),sector:document.getElementById('tarea-sector').value.trim()||null,asignadoA:document.getElementById('tarea-asignada').value,notas:document.getElementById('tarea-notas').value.trim(),historial};
   try {
     if (editId) {
       await dbUpdate('tareas', obj);
@@ -1829,8 +1842,8 @@ function renderTareas() {
   el.innerHTML=sorted.map(t=>{
     const last=t.historial?.[0];
     const dias=diasHastaVence(t);
-    const {badge,label}=estadoTarea(dias);
-    const prox=last?.fecha?addDays(last.fecha,t.freq):null;
+    const {badge,label}=estadoTarea(dias,t.freq);
+    const prox=last?.fecha&&t.freq>0?addDays(last.fecha,t.freq):null;
     const histHTML=(t.historial||[]).slice(0,6).map(h=>`
       <div class="history-entry">${avatar(h.quien,18)}<span>${fmtDateShort(h.fecha)}</span></div>`).join('');
     return `
@@ -1841,10 +1854,11 @@ function renderTareas() {
             <div class="tarea-badges">
               <span class="badge ${badge}">${label}</span>
               <span class="badge badge-cat">${t.cat}</span>
+              ${t.sector?`<span class="badge badge-cat">📍 ${esc(t.sector)}</span>`:''}
               ${t.asignadoA?`<div style="display:inline-flex;align-items:center;gap:4px">${avatar(t.asignadoA,18)}<span style="font-size:11px;color:var(--cr-muted)">${userName(t.asignadoA)}</span></div>`:''}
             </div>
             <div class="tarea-meta">
-              <span>🔁 Cada ${freqLabel(t.freq)}</span>
+              <span>${t.freq===0?'🔂 De una vez':'🔁 Cada '+freqLabel(t.freq)}</span>
               ${last?`<span style="display:inline-flex;align-items:center;gap:4px">${avatar(last.quien,16)} ${userName(last.quien)} — ${fmtDateShort(last.fecha)}</span>`:'<span>⏳ Nunca hecha</span>'}
               ${prox?`<span>📅 Próxima: ${fmtDateShort(prox)}</span>`:''}
               ${t.notas?`<span>💬 ${esc(t.notas)}</span>`:''}
@@ -1908,17 +1922,19 @@ function renderTareas() {
 }
 
 function diasHastaVence(t) {
+  if (t.freq===0) return t.historial?.[0] ? 9999 : -9999;
   const last=t.historial?.[0];
   if (!last?.fecha) return -9999;
   return Math.round((new Date(addDays(last.fecha,t.freq)+'T12:00:00')-new Date())/86400000);
 }
-function estadoTarea(dias) {
+function estadoTarea(dias, freq) {
+  if (freq===0) return dias===9999 ? {badge:'badge-ok',label:'Hecha ✅'} : {badge:'badge-vencida',label:'Pendiente'};
   if (dias<0) return {badge:'badge-vencida',label:`Vencida hace ${-dias}d`};
   if (dias===0) return {badge:'badge-vencida',label:'Vence hoy'};
   if (dias<=2) return {badge:'badge-pronto',label:`Vence en ${dias}d`};
   return {badge:'badge-ok',label:`OK — ${dias}d`};
 }
-function freqLabel(d) { return {1:'día',2:'2 días',3:'3 días',7:'semana',14:'2 semanas',30:'mes',60:'2 meses',90:'trimestre',180:'6 meses',365:'año'}[d]||d+' días'; }
+function freqLabel(d) { return {0:'una vez',1:'día',2:'2 días',3:'3 días',7:'semana',14:'2 semanas',30:'mes',60:'2 meses',90:'trimestre',180:'6 meses',365:'año'}[d]||d+' días'; }
 function addDays(s,days) { const d=new Date(s+'T12:00:00'); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
 
 // ── STOCK ─────────────────────────────────────────────────────
