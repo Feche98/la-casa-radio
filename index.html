@@ -2637,7 +2637,8 @@ function renderVipFeed() {
     }
   }
 
-  if (!news.length) { el.innerHTML='<div class="empty-state"><div class="ei">🔒</div><p>No hay contenido VIP todavía.</p></div>'; return; }
+  if (!news.length && !eventosInv.length) { el.innerHTML='<div class="empty-state"><div class="ei">🔒</div><p>No hay contenido de amigos todavía.</p></div>'; return; }
+  if (!news.length) { el.innerHTML=''; return; }
   el.innerHTML=news.map(n=>{
     const u=USERS[n.autor];
     const authorEl=u
@@ -3456,8 +3457,21 @@ async function guardarInvitacion() {
 }
 
 // ── RESPUESTAS MODAL ────────────────────────────────────────────
+function nombreDeOpcion(key, tpl) {
+  if (!tpl) return key;
+  const isSubKey = key.includes('::');
+  const realId = isSubKey ? key.split('::')[0] : key;
+  const op = (tpl.opciones||[]).find(o => o.id === realId);
+  if (!op) return key;
+  if (!isSubKey) return op.nombre;
+  const subId = key.split('::')[1];
+  const sub = (op.subIngredientes||[]).find(s => s.id === subId);
+  return sub ? op.nombre + ' › ' + sub.nombre : op.nombre;
+}
+
 function openRespuestasModal(eventoId) {
   const ev = S.eventos.find(e => e.id === eventoId); if (!ev) return;
+  const tpl = getTemplate(ev.templateId);
   document.getElementById('resp-titulo').textContent = `📩 Respuestas — ${esc(ev.nombre)}`;
   const rs = ev.respuestas || [];
   const van = rs.filter(r => r.asiste === true);
@@ -3471,8 +3485,10 @@ function openRespuestasModal(eventoId) {
   document.getElementById('resp-lista').innerHTML = rs.length ? rs.map(r => {
     const icon = r.asiste === true ? '✅' : r.asiste === false ? '❌' : '⏳';
     const veg = r.asiste && r.esVeg ? ' 🥦' : '';
-    const itemsStr = Object.keys(r.items||{}).length ? `<div style="font-size:11px;color:var(--cr-muted);margin-top:2px">${Object.entries(r.items).map(([k,v])=>v?k+(typeof v==='number'&&v!==true?' x'+v:''):'').filter(Boolean).join(', ')}</div>` : '';
-    const traeStr = r.trae && Object.keys(r.trae).length ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">🎒 Trae: ${Object.entries(r.trae).map(([k,v])=>k+' x'+v).join(', ')}</div>` : (r.traeTexto ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">🎒 Trae: ${esc(r.traeTexto)}</div>` : '');
+    const itemsStr = Object.keys(r.items||{}).length ? `<div style="font-size:11px;color:var(--cr-muted);margin-top:2px">${Object.entries(r.items).map(([k,v])=>v?nombreDeOpcion(k,tpl)+(typeof v==='number'&&v!==true?' ×'+v+(tpl ? (' '+(tpl.opciones||[]).find(o=>o.id===k.split('::')[0])?.unidad||'') : '') : ''):'').filter(Boolean).join(', ')}</div>` : '';
+    const traeStr = r.trae && Object.keys(r.trae).length
+      ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">🎒 Trae: ${Object.entries(r.trae).map(([k,v]) => nombreDeOpcion(k,tpl)+' ×'+v).join(', ')}</div>`
+      : (r.traeTexto ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">🎒 Trae: ${esc(r.traeTexto)}</div>` : '');
     return `<div class="resp-row"><span style="font-size:18px">${icon}</span><div><div style="font-weight:600">${esc(r.nombre)}${veg}</div><div style="font-size:12px;color:var(--cr-muted)">${esc(r.email||'')}${r.fecha?' · '+fmtDate(r.fecha.slice(0,10)):''}</div>${itemsStr}${traeStr}</div></div>`;
   }).join('') : '<p class="text-muted">Nadie respondió todavía.</p>';
   document.getElementById('respuestas-modal').classList.add('open');
@@ -3642,6 +3658,7 @@ function irPaso2Rsvp() {
       + '<p style="font-weight:600;font-size:14px;margin:0">🎒 ¿Traés algo?</p>'
       + '<button type="button" onclick="toggleTraePanel(this)" style="background:#f1f5f9;border:1px solid #ccc;border-radius:8px;padding:4px 12px;font-size:13px;cursor:pointer;color:#555">+ Sí, traigo algo</button>'
       + '</div>'
+      + '<p style="font-size:12px;color:#888;margin:0 0 .4rem 0;font-style:italic">✨ No hace falta traer nada — ¡esto es La Casa Radio y acá sobra todo! Pero si tenés ganas, bienvenido sea 🏠❤️</p>'
       + '<div id="trae-panel" style="display:none;margin-top:.5rem">' + traeOpciones + '</div>'
       + '</div>';
   }
