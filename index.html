@@ -298,6 +298,8 @@
     .hero h1 { font-size: 1.5rem; }
     .hero p { font-size: .875rem; }
     .hero-logo { width: 64px; height: 64px; }
+    .hero > div { flex-wrap: wrap; gap: 8px !important; justify-content: center; }
+    .hero > div > a { font-size: 12px !important; padding: 5px 10px !important; }
     .card { padding: 1rem; }
 
     /* Nav */
@@ -319,8 +321,15 @@
     /* Stock */
     .stock-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
     .stock-nombre { font-size: 13px; }
-    .stock-filter { gap: 5px; }
+    .stock-filter { gap: 5px; flex-wrap: wrap; }
     .filter-btn { padding: 4px 9px; font-size: 11px; }
+    #tab-stock .section-header { gap: 6px; }
+
+    /* Invitación */
+    .page-inv { padding: 1rem .75rem; }
+    .inv-step { padding: 1rem; }
+    .inv-opcion-row { flex-wrap: wrap; gap: 6px; }
+    .inv-opcion-cant { width: 60px !important; }
 
     /* Tabs */
     .tabs { gap: 0; }
@@ -402,6 +411,12 @@
   </div>
   <div style="max-width:900px;margin:0 auto;padding:0 0 2rem">
     <div id="vip-section" style="display:none">
+      <div class="card" id="vip-eventos-card" style="display:none">
+        <div class="section-header" style="margin-bottom:.75rem">
+          <h2>🎉 Eventos — confirmá tu asistencia</h2>
+        </div>
+        <div id="vip-eventos"></div>
+      </div>
       <div class="card">
         <div class="section-header" style="margin-bottom:1rem">
           <h2>🔒 Sala VIP</h2>
@@ -2593,6 +2608,37 @@ function updateSubUI() {
 function renderVipFeed() {
   const news=S.news.filter(n=>n.visibilidad==='vip'||n.visibilidad==='adelanto');
   const el=document.getElementById('vip-feed'); if(!el) return;
+
+  // Eventos con invitación activa a los que pertenece este amigo
+  const sub = subSession ? S.suscriptores.find(s=>s.id===subSession.id) : null;
+  const misGrupos = sub?.grupos||[];
+  const eventosInv = S.eventos.filter(ev => {
+    if (!ev.invitacion?.activa) return false;
+    const grupos = ev.invitacion.grupos||[];
+    return grupos.length===0 || misGrupos.some(g=>grupos.includes(g));
+  });
+  const evCard = document.getElementById('vip-eventos-card');
+  const evEl = document.getElementById('vip-eventos');
+  if (evCard && evEl) {
+    if (!eventosInv.length) {
+      evCard.style.display='none';
+    } else {
+      evCard.style.display='';
+      evEl.innerHTML = eventosInv.map(ev=>{
+        const tpl=getTemplate(ev.templateId);
+        const emoji=tpl?.emoji||'🎉';
+        return `<div style="display:flex;align-items:center;gap:12px;padding:.75rem 0;border-bottom:.5px solid var(--cr-border)">
+          <span style="font-size:24px">${emoji}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:15px">${esc(ev.nombre)}</div>
+            ${ev.fecha?`<div style="font-size:12px;color:var(--cr-muted)">${fmtDate(ev.fecha)}</div>`:''}
+          </div>
+          <a href="${location.origin}${location.pathname}#invitacion/${ev.id}" style="background:#6c47ff;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap">Confirmar →</a>
+        </div>`;
+      }).join('');
+    }
+  }
+
   if (!news.length) { el.innerHTML='<div class="empty-state"><div class="ei">🔒</div><p>No hay contenido VIP todavía.</p></div>'; return; }
   el.innerHTML=news.map(n=>{
     const u=USERS[n.autor];
@@ -3576,13 +3622,23 @@ function irPaso2Rsvp() {
         </label>
         ${opciones ? `
         <div style="margin-top:.5rem">
-          <div style="font-weight:600;font-size:14px;margin-bottom:.5rem;color:#444">${tipoLabel}:</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+            <div style="font-weight:600;font-size:14px;color:#444">${tipoLabel}:</div>
+            ${tipo==='menu-generico'?`<button onclick="toggleSelTodos(this)" style="font-size:12px;background:none;border:1px solid #ccc;border-radius:6px;padding:3px 10px;cursor:pointer;color:#555">Seleccionar todos</button>`:''}
+          </div>
           <div id="rsvp-extras">${opciones}</div>
         </div>` : ''}
         <button class="btn btn-primary" style="width:100%;margin-top:1.25rem" onclick="submitRsvp()">Confirmar</button>
       </div>`;
   }
   document.getElementById('inv-contenido').innerHTML = paso2Html;
+}
+
+function toggleSelTodos(btn) {
+  const checks = document.querySelectorAll('#rsvp-extras input[type="checkbox"]');
+  const allChecked = [...checks].every(c=>c.checked);
+  checks.forEach(c=>c.checked=!allChecked);
+  btn.textContent = allChecked ? 'Seleccionar todos' : 'Deseleccionar todos';
 }
 
 function buildRsvpOpciones(tpl, ev, tipo) {
