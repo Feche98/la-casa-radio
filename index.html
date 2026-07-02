@@ -3472,7 +3472,8 @@ function openRespuestasModal(eventoId) {
     const icon = r.asiste === true ? '✅' : r.asiste === false ? '❌' : '⏳';
     const veg = r.asiste && r.esVeg ? ' 🥦' : '';
     const itemsStr = Object.keys(r.items||{}).length ? `<div style="font-size:11px;color:var(--cr-muted);margin-top:2px">${Object.entries(r.items).map(([k,v])=>v?k+(typeof v==='number'&&v!==true?' x'+v:''):'').filter(Boolean).join(', ')}</div>` : '';
-    return `<div class="resp-row"><span style="font-size:18px">${icon}</span><div><div style="font-weight:600">${esc(r.nombre)}${veg}</div><div style="font-size:12px;color:var(--cr-muted)">${esc(r.email||'')}${r.fecha?' · '+fmtDate(r.fecha.slice(0,10)):''}</div>${itemsStr}</div></div>`;
+    const traeStr = r.trae && Object.keys(r.trae).length ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">🎒 Trae: ${Object.entries(r.trae).map(([k,v])=>k+' x'+v).join(', ')}</div>` : (r.traeTexto ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">🎒 Trae: ${esc(r.traeTexto)}</div>` : '');
+    return `<div class="resp-row"><span style="font-size:18px">${icon}</span><div><div style="font-weight:600">${esc(r.nombre)}${veg}</div><div style="font-size:12px;color:var(--cr-muted)">${esc(r.email||'')}${r.fecha?' · '+fmtDate(r.fecha.slice(0,10)):''}</div>${itemsStr}${traeStr}</div></div>`;
   }).join('') : '<p class="text-muted">Nadie respondió todavía.</p>';
   document.getElementById('respuestas-modal').classList.add('open');
 }
@@ -3600,6 +3601,7 @@ function irPaso2Rsvp() {
             <input type="checkbox" id="rsvp-veg"> Soy vegetariano/a 🥦
           </label>
         </div>
+        ${tpl ? buildTraeOpciones(tpl, ev) : '<div class="form-group"><label style="font-weight:600;font-size:14px">¿Traés algo?</label><input type="text" id="rsvp-trae-texto" placeholder="Ej: Torta, vino... (opcional)" style="margin-top:.35rem"></div>'}
         <button class="btn btn-primary" style="width:100%;margin-top:1.25rem" onclick="submitRsvp()">Confirmar</button>
       </div>`;
   } else {
@@ -3626,10 +3628,32 @@ function irPaso2Rsvp() {
           </div>
           <div id="rsvp-extras">${opciones}</div>
         </div>` : ''}
+        ${buildTraeOpciones(tpl, ev)}
         <button class="btn btn-primary" style="width:100%;margin-top:1.25rem" onclick="submitRsvp()">Confirmar</button>
       </div>`;
   }
   document.getElementById('inv-contenido').innerHTML = paso2Html;
+}
+
+function buildTraeOpciones(tpl, ev) {
+  if (!tpl) return '<div class="form-group" style="margin-top:.75rem"><label style="font-weight:600;font-size:14px">¿Traés algo? <span style="font-weight:400;color:var(--cr-muted)">(opcional)</span></label><input type="text" id="rsvp-trae-texto" placeholder="Ej: torta, vino..." style="margin-top:.35rem"></div>';
+  const sel = new Set(ev.opcionesSeleccionadas || []);
+  const rows = [];
+  (tpl.opciones||[]).forEach(op => {
+    if (!sel.has(op.id)) return;
+    if (op.subIngredientes?.length) {
+      op.subIngredientes.forEach(sub => {
+        const key = op.id+'::'+sub.id;
+        if (!sel.has(key)) return;
+        rows.push('<div class="inv-opcion-row" style="margin-left:16px"><span class="inv-opcion-label" style="flex:1;font-size:13px">↳ '+esc(sub.nombre)+'</span><input class="inv-opcion-cant" type="number" min="0" step="0.5" placeholder="0" data-trae="'+key+'" style="width:60px">'+( sub.unidad?'<span style="font-size:12px;color:#888">'+esc(sub.unidad)+'</span>':'')+'</div>');
+      });
+    } else {
+      if (op.fijaLabel) return;
+      rows.push('<div class="inv-opcion-row"><span class="inv-opcion-label" style="flex:1;font-size:13px">'+esc(op.nombre)+'</span><input class="inv-opcion-cant" type="number" min="0" step="0.5" placeholder="0" data-trae="'+op.id+'" style="width:60px">'+( op.unidad?'<span style="font-size:12px;color:#888">'+esc(op.unidad)+'</span>':'')+'</div>');
+    }
+  });
+  if (!rows.length) return '';
+  return '<div style="margin-top:.75rem;padding-top:.75rem;border-top:.5px solid var(--cr-border)"><div style="font-weight:600;font-size:14px;margin-bottom:.5rem">¿Traés algo? <span style="font-weight:400;color:var(--cr-muted);font-size:13px">(opcional — se descuenta del total)</span></div><div id="rsvp-trae-items">'+rows.join('')+'</div></div>';
 }
 
 function toggleSelTodos(btn) {
@@ -3691,15 +3715,21 @@ async function submitRsvp() {
       else if (el.type === 'number') { const v = parseFloat(el.value); if (v > 0) items[el.dataset.key] = v; }
     });
   }
+  // Recolectar qué trae
+  const trae = {};
+  document.querySelectorAll('[data-trae]').forEach(el => {
+    const v = parseFloat(el.value); if (v > 0) trae[el.dataset.trae] = v;
+  });
+  const traeTexto = document.getElementById('rsvp-trae-texto')?.value.trim() || null;
   // Buscar o crear la respuesta
   if (!ev.respuestas) ev.respuestas = [];
   let resp = suscriptorId
     ? ev.respuestas.find(r => r.suscriptorId === suscriptorId)
     : ev.respuestas.find(r => r.email === email && email);
   if (resp) {
-    Object.assign(resp, { asiste: _rsvpAsiste, esVeg, items, fecha: new Date().toISOString(), nombre });
+    Object.assign(resp, { asiste: _rsvpAsiste, esVeg, items, trae: Object.keys(trae).length ? trae : null, traeTexto, fecha: new Date().toISOString(), nombre });
   } else {
-    ev.respuestas.push({ id: uid(), suscriptorId, nombre, email: email||'', asiste: _rsvpAsiste, esVeg, items, fecha: new Date().toISOString() });
+    ev.respuestas.push({ id: uid(), suscriptorId, nombre, email: email||'', asiste: _rsvpAsiste, esVeg, items, trae: Object.keys(trae).length ? trae : null, traeTexto, fecha: new Date().toISOString() });
   }
   // Actualizar personas automáticamente si hay respuestas
   const van = ev.respuestas.filter(r => r.asiste === true);
@@ -4012,7 +4042,11 @@ function abrirListaEvento(id) {
         if (!opData) return;
         if (opData.fijaLabel) { cantidades[opId] = opData.fijaLabel; return; }
         const quieren = respuestas.filter(r => r.items?.[opId]).length;
-        if (opData.cantPP > 0 && quieren > 0) cantidades[opId] = Math.round(opData.cantPP * quieren * 10) / 10;
+        const traenTotal = respuestas.reduce((s, r) => s + (r.trae?.[opId] || 0), 0);
+        if (opData.cantPP > 0 && quieren > 0) {
+          const necesario = Math.max(0, Math.round((opData.cantPP * quieren - traenTotal) * 10) / 10);
+          cantidades[opId] = necesario + (traenTotal > 0 ? ' (−'+traenTotal+' traen)' : '');
+        }
       });
       mostrarListaEvento(ev.nombre, respuestas.length, sel, cantidades, tpl);
 
@@ -4020,8 +4054,10 @@ function abrirListaEvento(id) {
       // menu-personalizado: sumar cantidades ingresadas por cada persona
       sel.forEach(opId => {
         let total = 0;
+        const traenTotal = respuestas.reduce((s, r) => s + (r.trae?.[opId] || 0), 0);
         respuestas.forEach(r => { const v = r.items?.[opId]; if (typeof v === 'number') total += v; });
-        if (total > 0) cantidades[opId] = Math.round(total * 10) / 10;
+        const necesario = Math.max(0, total - traenTotal);
+        if (total > 0) cantidades[opId] = necesario + (traenTotal > 0 ? ' (−'+traenTotal+' traen)' : '');
       });
       mostrarListaEvento(ev.nombre, respuestas.length, sel, cantidades, tpl);
     }
