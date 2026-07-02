@@ -411,16 +411,14 @@
   </div>
   <div style="max-width:900px;margin:0 auto;padding:0 0 2rem">
     <div id="vip-section" style="display:none">
-      <div class="card" id="vip-eventos-card" style="display:none">
-        <div class="section-header" style="margin-bottom:.75rem">
-          <h2>🎉 Eventos — confirmá tu asistencia</h2>
-        </div>
-        <div id="vip-eventos"></div>
-      </div>
       <div class="card">
         <div class="section-header" style="margin-bottom:1rem">
-          <h2>🔒 Sala VIP</h2>
+          <h2>🛋️ Living de Amigos</h2>
           <span class="badge badge-vip">Solo amigos</span>
+        </div>
+        <div id="vip-eventos-card" style="display:none;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--cr-border)">
+          <div style="font-weight:700;font-size:13px;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem">🎉 Eventos — confirmá tu asistencia</div>
+          <div id="vip-eventos"></div>
         </div>
         <div id="vip-feed"></div>
       </div>
@@ -549,7 +547,7 @@
       <h2>Votaciones</h2>
       <button class="btn btn-primary btn-sm" onclick="openVotacionModal()">+ Nueva votación</button>
     </div>
-    <p class="text-muted" style="margin-bottom:1rem">Los amigos votan desde la Sala VIP. Todos pueden ver los resultados.</p>
+    <p class="text-muted" style="margin-bottom:1rem">Los amigos votan desde la Living de Amigos. Todos pueden ver los resultados.</p>
     <div id="votaciones-priv"></div>
   </div>
 
@@ -848,7 +846,7 @@
       <label>Visibilidad</label>
       <select id="news-visibilidad" onchange="toggleAdelantoOpts(this.value)">
         <option value="publico">🌐 Público — visible para todos</option>
-        <option value="vip">🔒 Solo amigos (Sala VIP)</option>
+        <option value="vip">🔒 Solo amigos (Living de Amigos)</option>
         <option value="adelanto">⏰ Adelanto — amigos lo ven antes</option>
       </select>
     </div>
