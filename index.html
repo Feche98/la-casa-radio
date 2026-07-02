@@ -3737,12 +3737,6 @@ async function submitRsvp() {
     });
   }
   const trae = {};
-  const traeTexto = document.getElementById('rsvp-trae-texto')?.value.trim() || '';
-  document.querySelectorAll('[data-trae]').forEach(el => {
-    const v = parseFloat(el.value); if (v > 0) trae[el.dataset.trae] = v;
-  });
-  // Recolectar qué trae
-  const trae = {};
   document.querySelectorAll('[data-trae]').forEach(el => {
     const v = parseFloat(el.value); if (v > 0) trae[el.dataset.trae] = v;
   });
