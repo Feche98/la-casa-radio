@@ -3601,7 +3601,7 @@ function irPaso2Rsvp() {
             <input type="checkbox" id="rsvp-veg"> Soy vegetariano/a 🥦
           </label>
         </div>
-        ${buildTraeSeccion(null, ev)}
+        <div id="rsvp-trae-placeholder"></div>
         <button class="btn btn-primary" style="width:100%;margin-top:1.25rem" onclick="submitRsvp()">Confirmar</button>
       </div>`;
   } else {
@@ -3628,15 +3628,53 @@ function irPaso2Rsvp() {
           </div>
           <div id="rsvp-extras">${opciones}</div>
         </div>` : ''}
-        ${buildTraeSeccion(tpl, ev)}
+        <div id="rsvp-trae-placeholder"></div>
         <button class="btn btn-primary" style="width:100%;margin-top:1.25rem" onclick="submitRsvp()">Confirmar</button>
       </div>`;
   }
   document.getElementById('inv-contenido').innerHTML = paso2Html;
+  // Inyectar sección "¿Traés algo?" por DOM, fuera del template literal
+  var traeEl = document.getElementById('rsvp-trae-placeholder');
+  if (traeEl) {
+    var traeOpciones = buildTraeOpciones(tpl, ev);
+    traeEl.innerHTML = '<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid #e2e8f0">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem">'
+      + '<p style="font-weight:600;font-size:14px;margin:0">🎒 ¿Traés algo?</p>'
+      + '<button type="button" onclick="toggleTraePanel(this)" style="background:#f1f5f9;border:1px solid #ccc;border-radius:8px;padding:4px 12px;font-size:13px;cursor:pointer;color:#555">+ Sí, traigo algo</button>'
+      + '</div>'
+      + '<div id="trae-panel" style="display:none;margin-top:.5rem">' + traeOpciones + '</div>'
+      + '</div>';
+  }
 }
 
-function buildTraeSeccion(tpl, ev) {
-  return '<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid #e2e8f0"><p style="font-weight:600;font-size:14px;margin:0 0 .4rem">🎒 ¿Traés algo? <span style="font-weight:400;color:#888;font-size:13px">(opcional)</span></p><input type="text" id="rsvp-trae-texto" placeholder="Ej: torta, vino, gaseosa..." style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid #ccc;border-radius:8px;font-size:14px"></div>';
+function toggleTraePanel(btn) {
+  var panel = document.getElementById('trae-panel');
+  if (!panel) return;
+  var abierto = panel.style.display !== 'none';
+  panel.style.display = abierto ? 'none' : '';
+  btn.textContent = abierto ? '+ Sí, traigo algo' : '− No traigo nada';
+}
+
+function buildTraeOpciones(tpl, ev) {
+  if (!tpl) return '<input type="text" id="rsvp-trae-texto" placeholder="Ej: torta, vino, gaseosa..." style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid #ccc;border-radius:8px;font-size:14px">';
+  var sel = new Set(ev.opcionesSeleccionadas || []);
+  var rows = [];
+  (tpl.opciones || []).forEach(function(op) {
+    if (!sel.has(op.id)) return;
+    if (op.fijaLabel) return;
+    if (op.subIngredientes && op.subIngredientes.length) {
+      rows.push('<div style="font-weight:600;font-size:13px;padding:.4rem 0;color:#555">' + esc(op.nombre) + '</div>');
+      op.subIngredientes.forEach(function(sub) {
+        var key = op.id + '::' + sub.id;
+        if (!sel.has(key)) return;
+        rows.push('<div style="display:flex;align-items:center;gap:8px;padding:.35rem 0;border-bottom:.5px solid #eee;margin-left:12px"><span style="flex:1;font-size:13px">↳ ' + esc(sub.nombre) + '</span><input type="number" min="0" step="0.5" placeholder="0" data-trae="' + key + '" style="width:60px;padding:4px;border:1px solid #ccc;border-radius:6px;font-size:13px">' + (sub.unidad ? '<span style="font-size:12px;color:#888">' + esc(sub.unidad) + '</span>' : '') + '</div>');
+      });
+    } else {
+      rows.push('<div style="display:flex;align-items:center;gap:8px;padding:.35rem 0;border-bottom:.5px solid #eee"><span style="flex:1;font-size:13px">' + esc(op.nombre) + '</span><input type="number" min="0" step="0.5" placeholder="0" data-trae="' + op.id + '" style="width:60px;padding:4px;border:1px solid #ccc;border-radius:6px;font-size:13px">' + (op.unidad ? '<span style="font-size:12px;color:#888">' + esc(op.unidad) + '</span>' : '') + '</div>');
+    }
+  });
+  if (!rows.length) return '<input type="text" id="rsvp-trae-texto" placeholder="Ej: torta, vino, gaseosa..." style="width:100%;box-sizing:border-box;padding:.5rem;border:1px solid #ccc;border-radius:8px;font-size:14px">';
+  return rows.join('');
 }
 
 function toggleSelTodos(btn) {
@@ -3698,6 +3736,11 @@ async function submitRsvp() {
       else if (el.type === 'number') { const v = parseFloat(el.value); if (v > 0) items[el.dataset.key] = v; }
     });
   }
+  const trae = {};
+  const traeTexto = document.getElementById('rsvp-trae-texto')?.value.trim() || '';
+  document.querySelectorAll('[data-trae]').forEach(el => {
+    const v = parseFloat(el.value); if (v > 0) trae[el.dataset.trae] = v;
+  });
   // Recolectar qué trae
   const trae = {};
   document.querySelectorAll('[data-trae]').forEach(el => {
