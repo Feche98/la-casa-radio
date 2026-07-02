@@ -2633,7 +2633,7 @@ function renderVipFeed() {
             <div style="font-weight:600;font-size:15px">${esc(ev.nombre)}</div>
             ${ev.fecha?`<div style="font-size:12px;color:var(--cr-muted)">${fmtDate(ev.fecha)}</div>`:''}
           </div>
-          <a href="${location.origin}${location.pathname}#invitacion/${ev.id}" style="background:#6c47ff;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap">Confirmar →</a>
+          <button onclick="showInvitacionPage('${ev.id}')" style="background:#6c47ff;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">Confirmar →</button>
         </div>`;
       }).join('');
     }
