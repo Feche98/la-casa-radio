@@ -3601,7 +3601,7 @@ function irPaso2Rsvp() {
             <input type="checkbox" id="rsvp-veg"> Soy vegetariano/a 🥦
           </label>
         </div>
-        ${tpl ? buildTraeOpciones(tpl, ev) : '<div class="form-group"><label style="font-weight:600;font-size:14px">¿Traés algo?</label><input type="text" id="rsvp-trae-texto" placeholder="Ej: Torta, vino... (opcional)" style="margin-top:.35rem"></div>'}
+        ${buildTraeSeccion(null, ev)}
         <button class="btn btn-primary" style="width:100%;margin-top:1.25rem" onclick="submitRsvp()">Confirmar</button>
       </div>`;
   } else {
@@ -3628,15 +3628,16 @@ function irPaso2Rsvp() {
           </div>
           <div id="rsvp-extras">${opciones}</div>
         </div>` : ''}
-        ${buildTraeOpciones(tpl, ev)}
+        ${buildTraeSeccion(tpl, ev)}
         <button class="btn btn-primary" style="width:100%;margin-top:1.25rem" onclick="submitRsvp()">Confirmar</button>
       </div>`;
   }
   document.getElementById('inv-contenido').innerHTML = paso2Html;
 }
 
-function buildTraeOpciones(tpl, ev) {
-  if (!tpl) return '<div class="form-group" style="margin-top:.75rem"><label style="font-weight:600;font-size:14px">¿Traés algo? <span style="font-weight:400;color:var(--cr-muted)">(opcional)</span></label><input type="text" id="rsvp-trae-texto" placeholder="Ej: torta, vino..." style="margin-top:.35rem"></div>';
+function buildTraeSeccion(tpl, ev) {
+  const textoFallback = '<div style="margin-top:.75rem;padding-top:.75rem;border-top:.5px solid var(--cr-border)"><div style="font-weight:600;font-size:14px;margin-bottom:.35rem">🎒 ¿Traés algo? <span style="font-weight:400;color:var(--cr-muted);font-size:13px">(opcional)</span></div><input type="text" id="rsvp-trae-texto" placeholder="Ej: torta, vino, gaseosa..." style="width:100%;box-sizing:border-box"></div>';
+  if (!tpl) return textoFallback;
   const sel = new Set(ev.opcionesSeleccionadas || []);
   const rows = [];
   (tpl.opciones||[]).forEach(op => {
@@ -3652,8 +3653,8 @@ function buildTraeOpciones(tpl, ev) {
       rows.push('<div class="inv-opcion-row"><span class="inv-opcion-label" style="flex:1;font-size:13px">'+esc(op.nombre)+'</span><input class="inv-opcion-cant" type="number" min="0" step="0.5" placeholder="0" data-trae="'+op.id+'" style="width:60px">'+( op.unidad?'<span style="font-size:12px;color:#888">'+esc(op.unidad)+'</span>':'')+'</div>');
     }
   });
-  if (!rows.length) return '';
-  return '<div style="margin-top:.75rem;padding-top:.75rem;border-top:.5px solid var(--cr-border)"><div style="font-weight:600;font-size:14px;margin-bottom:.5rem">¿Traés algo? <span style="font-weight:400;color:var(--cr-muted);font-size:13px">(opcional — se descuenta del total)</span></div><div id="rsvp-trae-items">'+rows.join('')+'</div></div>';
+  if (!rows.length) return textoFallback;
+  return '<div style="margin-top:.75rem;padding-top:.75rem;border-top:.5px solid var(--cr-border)"><div style="font-weight:600;font-size:14px;margin-bottom:.5rem">🎒 ¿Traés algo? <span style="font-weight:400;color:var(--cr-muted);font-size:13px">(opcional — se descuenta del total)</span></div>'+rows.join('')+'</div>';
 }
 
 function toggleSelTodos(btn) {
