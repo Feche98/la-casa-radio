@@ -3793,10 +3793,12 @@ async function generarLiquidacion() {
 
   closeModal('cierre-evento-modal');
 
+  window._liqMensajes = [];
+
   document.getElementById('tk-titulo').textContent = '🎟️ Liquidación — ' + esc(ev.nombre);
   document.getElementById('tk-body').innerHTML = `
     <p style="font-size:13px;color:var(--cr-muted);margin-bottom:1rem">Total: <b>$${total.toFixed(2)}</b> · ${totalAsistentes} asistentes · <b>$${share.toFixed(2)} por persona</b></p>
-    ${tickets.map(t => {
+    ${tickets.map((t, i) => {
       const debePos = t.debeNeto > 0.5;
       const transferRows = t.transferencias.map(tr =>
         `<div style="display:flex;align-items:center;justify-content:space-between;background:#fef2f2;border-radius:8px;padding:6px 10px;margin-bottom:4px">
@@ -3804,9 +3806,9 @@ async function generarLiquidacion() {
           <span style="font-weight:700;color:#dc2626;font-size:14px">$${tr.monto.toFixed(2)}</span>
         </div>`
       ).join('');
-      const copyMsg = debePos
-        ? `Hola ${t.nombre}! 🏠 Liquidación de "${ev.nombre}": te corresponde $${t.share.toFixed(2)}. ${t.transferencias.map(tr=>`Transferí $${tr.monto.toFixed(2)} a ${GUSERS[tr.a]||tr.a}${MP_ALIAS[tr.a]?' ('+MP_ALIAS[tr.a]+')':''}`).join(' y ')}. ¡Gracias!`
-        : '';
+      if (debePos) {
+        window._liqMensajes[i] = `Hola ${t.nombre}! 🏠 Liquidación de "${ev.nombre}": te corresponde $${t.share.toFixed(2)}. ${t.transferencias.map(tr=>`Transferí $${tr.monto.toFixed(2)} a ${GUSERS[tr.a]||tr.a}${MP_ALIAS[tr.a]?' ('+MP_ALIAS[tr.a]+')':''}`).join(' y ')}. ¡Gracias!`;
+      }
       return `<div style="border:1px solid var(--cr-border);border-radius:10px;padding:.75rem 1rem;margin-bottom:.75rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
           <div style="font-weight:700;font-size:15px">${t.tipo==='familia'?(avatar(t.uid,22)+' '):'👤 '}${esc(t.nombre)}</div>
@@ -3814,7 +3816,7 @@ async function generarLiquidacion() {
         </div>
         <div style="font-size:12px;color:var(--cr-muted);margin-bottom:.5rem">Le corresponde: $${t.share.toFixed(2)}${t.pagado>0?' · Pagó: $'+t.pagado.toFixed(2):''}</div>
         ${debePos ? transferRows : '<div style="font-size:13px;color:#16a34a">✅ Ya cubierto — no debe nada</div>'}
-        ${debePos && copyMsg ? `<button onclick="navigator.clipboard.writeText(${JSON.stringify(copyMsg)}).then(()=>toast('¡Copiado!'))" style="margin-top:.4rem;font-size:12px;background:#f1f5f9;border:1px solid #ccc;border-radius:6px;padding:4px 10px;cursor:pointer">📋 Copiar mensaje</button>` : ''}
+        ${debePos ? `<button onclick="navigator.clipboard.writeText(window._liqMensajes[${i}]).then(()=>toast('¡Copiado!'))" style="margin-top:.4rem;font-size:12px;background:#f1f5f9;border:1px solid #ccc;border-radius:6px;padding:4px 10px;cursor:pointer">📋 Copiar mensaje</button>` : ''}
       </div>`;
     }).join('')}`;
   document.getElementById('tickets-modal').classList.add('open');
