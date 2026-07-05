@@ -5221,10 +5221,11 @@ async function enviarMateNotif(tipo) {
     await showInvitacionPage(eventoId);
     return;
   }
-  if (hash.startsWith('#tab/')) {
+  if (hash.startsWith('#tab/') && currentUser) {
     const tabName = hash.slice('#tab/'.length);
-    const btn = document.querySelector(`.tab[onclick*="switchTab('${tabName}'"]`);
-    if (btn) switchTab(tabName, btn);
+    showPage('private');
+    const btn = [...document.querySelectorAll('.tab')].find(b => b.getAttribute('onclick')?.includes(`'${tabName}'`));
+    if (btn) { switchTab(tabName, btn); }
   }
 
   renderNewsFeed();
