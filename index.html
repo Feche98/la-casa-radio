@@ -715,6 +715,17 @@
   </div>
 </div>
 
+<!-- DETALLE GASTO MODAL -->
+<div class="modal-overlay" id="detalle-gasto-modal">
+  <div class="modal" style="max-width:420px">
+    <h3 id="dg-titulo">Detalle del gasto</h3>
+    <div id="dg-body" style="font-size:14px;line-height:1.7"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('detalle-gasto-modal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- SALDAR MODAL -->
 <div class="modal-overlay" id="saldar-modal">
   <div class="modal" style="max-width:380px">
@@ -1653,6 +1664,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
+  history.replaceState(null, '', '#tab/' + name);
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
@@ -3050,6 +3062,43 @@ function toggleDivision(val) {
   }
 }
 
+function openDetalleGasto(id) {
+  const g = S.gastos.find(x => x.id === id); if (!g) return;
+  document.getElementById('dg-titulo').textContent = (CAT_EMOJI[g.categoria]||'💰') + ' ' + g.titulo;
+  const n = g.participantes?.length || 1;
+  const pagadores = g.pagadores || { [g.pagador]: g.monto };
+  const pagRows = Object.entries(pagadores).map(([p, m]) =>
+    `<div style="display:flex;justify-content:space-between"><span>${avatar(p,18)} <b>${GUSERS[p]||p}</b></span><span style="color:#6c47ff;font-weight:700">$${parseFloat(m).toFixed(2)}</span></div>`
+  ).join('');
+  const partRows = g.participantes.map(p => {
+    const pct = g.porcentajes?.[p] ?? (100/n);
+    const debe = g.monto * pct / 100;
+    const pagado = pagadores[p] || 0;
+    const neto = pagado - debe;
+    const color = neto > 0.5 ? '#16a34a' : neto < -0.5 ? '#dc2626' : '#888';
+    const label = neto > 0.5 ? `le deben $${neto.toFixed(2)}` : neto < -0.5 ? `debe $${Math.abs(neto).toFixed(2)}` : 'al día';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0">
+      <span>${avatar(p,18)} ${GUSERS[p]||p}</span>
+      <span style="font-size:12px;color:var(--cr-muted)">${pct%1===0?pct:pct.toFixed(1)}% = $${debe.toFixed(2)}</span>
+      <span style="font-size:12px;font-weight:600;color:${color}">${label}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('dg-body').innerHTML = `
+    ${g.descripcion ? `<p style="color:var(--cr-muted);margin:0 0 .75rem">${esc(g.descripcion)}</p>` : ''}
+    <div style="margin-bottom:.75rem">
+      <div style="font-size:11px;font-weight:700;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem">Pagó</div>
+      ${pagRows}
+    </div>
+    <div style="border-top:1px solid var(--cr-border);padding-top:.75rem">
+      <div style="font-size:11px;font-weight:700;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem">División</div>
+      ${partRows}
+    </div>
+    <div style="border-top:1px solid var(--cr-border);padding-top:.5rem;margin-top:.5rem;display:flex;justify-content:space-between;font-weight:700">
+      <span>Total</span><span style="color:#6c47ff">$${g.monto.toFixed(2)}</span>
+    </div>`;
+  document.getElementById('detalle-gasto-modal').classList.add('open');
+}
+
 function openGastoModal(id=null) {
   document.getElementById('g-edit-id').value=id||'';
   document.getElementById('gasto-modal-title').textContent=id?'Editar gasto':'Nuevo gasto';
@@ -3238,6 +3287,7 @@ function renderGastos() {
       <div style="text-align:right">
         <div class="gasto-monto">$${g.monto.toFixed(2)}</div>
         <div style="display:flex;gap:4px;margin-top:4px;justify-content:flex-end">
+          <button class="btn-icon" onclick="openDetalleGasto('${g.id}')" title="Ver detalle">👁</button>
           <button class="btn-icon" onclick="openGastoModal('${g.id}')">✏️</button>
           <button class="btn-icon" onclick="eliminarGasto('${g.id}')">🗑</button>
         </div>
@@ -5170,6 +5220,11 @@ async function enviarMateNotif(tipo) {
     const eventoId = hash.slice('#invitacion/'.length);
     await showInvitacionPage(eventoId);
     return;
+  }
+  if (hash.startsWith('#tab/')) {
+    const tabName = hash.slice('#tab/'.length);
+    const btn = document.querySelector(`.tab[onclick*="switchTab('${tabName}'"]`);
+    if (btn) switchTab(tabName, btn);
   }
 
   renderNewsFeed();
