@@ -3662,7 +3662,10 @@ function abrirCierreEvento(eventoId) {
   ).join('');
 
   const externosRows = externosReales.length
-    ? externosReales.map(r => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:14px">✅ <b>${esc(r.nombre)}</b> <span style="color:var(--cr-muted);font-size:12px">${esc(r.email||'')}</span></div>`).join('')
+    ? externosReales.map(r => `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer">
+        <input type="checkbox" id="ce-ext-${r.id}" value="${r.id}" checked style="width:16px;height:16px">
+        <span style="font-size:14px"><b>${esc(r.nombre)}</b> <span style="color:var(--cr-muted);font-size:12px">${esc(r.email||'')}</span></span>
+      </label>`).join('')
     : '<p style="font-size:13px;color:var(--cr-muted)">Ningún amigo externo confirmó asistencia.</p>';
 
   const pagadoresChecks = Object.entries(GUSERS).map(([k, nombre]) =>
@@ -3718,8 +3721,9 @@ async function generarLiquidacion() {
 
   // Familia que fue
   const familiaFue = [...document.querySelectorAll('#ce-familia input:checked')].map(c => c.value);
-  // Solo externos reales (excluir los que son familia por nombre de amigo)
-  const externosConfirmados = (ev.respuestas || []).filter(r => r.asiste === true && !amigoEsFamilia(r.nombre));
+  // Solo externos tildados en el modal (excluye los que son familia y los que se destildaron)
+  const extCheckedIds = new Set([...document.querySelectorAll('[id^="ce-ext-"]:checked')].map(c => c.value));
+  const externosConfirmados = (ev.respuestas || []).filter(r => r.asiste === true && !amigoEsFamilia(r.nombre) && extCheckedIds.has(r.id));
   const totalAsistentes = familiaFue.length + externosConfirmados.length;
   if (totalAsistentes === 0) { toast('Seleccioná al menos un asistente'); return; }
 
