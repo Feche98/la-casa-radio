@@ -1680,7 +1680,7 @@ function showPage(name) {
   document.getElementById('nav-public').classList.toggle('active', name==='public');
   document.getElementById('nav-private').classList.toggle('active', name==='private');
   if (name==='private') renderAll();
-  if (name==='public') renderNewsFeed();
+  if (name==='public') { renderNewsFeed(); history.replaceState(null, '', location.pathname); }
 }
 
 function switchTab(name, btn) {
@@ -3609,9 +3609,23 @@ function openRespuestasModal(eventoId) {
     const traeStr = r.trae && Object.keys(r.trae).length
       ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">🎒 Trae: ${Object.entries(r.trae).map(([k,v]) => nombreDeOpcion(k,tpl)+' ×'+v).join(', ')}</div>`
       : (r.traeTexto ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">🎒 Trae: ${esc(r.traeTexto)}</div>` : '');
-    return `<div class="resp-row"><span style="font-size:18px">${icon}</span><div><div style="font-weight:600">${esc(r.nombre)}${veg}</div><div style="font-size:12px;color:var(--cr-muted)">${esc(r.email||'')}${r.fecha?' · '+fmtDate(r.fecha.slice(0,10)):''}</div>${itemsStr}${traeStr}</div></div>`;
+    const btnDesconf = r.asiste === true
+      ? `<button onclick="toggleAsistencia('${ev.id}','${r.id}')" style="font-size:11px;padding:2px 8px;border:1px solid #dc2626;color:#dc2626;background:#fff;border-radius:6px;cursor:pointer;margin-top:4px">✕ Desconfirmar</button>`
+      : r.asiste === false ? `<button onclick="toggleAsistencia('${ev.id}','${r.id}')" style="font-size:11px;padding:2px 8px;border:1px solid #16a34a;color:#16a34a;background:#fff;border-radius:6px;cursor:pointer;margin-top:4px">✓ Marcar que va</button>` : '';
+    return `<div class="resp-row"><span style="font-size:18px">${icon}</span><div style="flex:1"><div style="font-weight:600">${esc(r.nombre)}${veg}</div><div style="font-size:12px;color:var(--cr-muted)">${esc(r.email||'')}${r.fecha?' · '+fmtDate(r.fecha.slice(0,10)):''}</div>${itemsStr}${traeStr}${btnDesconf}</div></div>`;
   }).join('') : '<p class="text-muted">Nadie respondió todavía.</p>';
   document.getElementById('respuestas-modal').classList.add('open');
+}
+
+async function toggleAsistencia(eventoId, respId) {
+  const ev = S.eventos.find(e => e.id === eventoId); if (!ev) return;
+  const r = (ev.respuestas||[]).find(r => r.id === respId); if (!r) return;
+  r.asiste = r.asiste === true ? false : true;
+  try {
+    await dbUpdate('eventos', ev);
+    openRespuestasModal(eventoId);
+    renderEventos();
+  } catch(e) { toast('Error al actualizar'); }
 }
 
 // ── CIERRE Y LIQUIDACIÓN DE EVENTO ──────────────────────────────
