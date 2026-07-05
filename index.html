@@ -704,6 +704,7 @@
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;color:var(--cr-text)"><input type="radio" name="g-div" value="igual" checked onchange="toggleDivision(this.value)"> Partes iguales</label>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;color:var(--cr-text)"><input type="radio" name="g-div" value="pct" onchange="toggleDivision(this.value)"> Porcentajes</label>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;color:var(--cr-text)"><input type="radio" name="g-div" value="monto" onchange="toggleDivision(this.value)"> Por monto</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;color:var(--cr-text)"><input type="radio" name="g-div" value="rest" onchange="toggleDivision(this.value)"> 🥩🥦 Restricción</label>
       </div>
       <div id="g-pct-inputs" style="display:none"></div>
     </div>
@@ -3080,6 +3081,37 @@ function toggleDivision(val) {
         <span style="font-size:13px;color:var(--cr-muted)">$</span>
       </div>`).join('');
     row.style.display='block';
+  } else if (val==='rest') {
+    const parts = [...document.querySelectorAll('#g-participantes input:checked')].map(c=>c.value);
+    const VEG_DEFAULT = new Set(['nehue']);
+    row.innerHTML = `
+      <div style="margin-bottom:.75rem">
+        <div style="font-size:12px;font-weight:700;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">¿Quién es vegetariano?</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          ${parts.map(p=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal">
+            <input type="checkbox" id="rest-veg-${p}" ${VEG_DEFAULT.has(p)?'checked':''} style="width:15px;height:15px"> ${GUSERS[p]||p}
+          </label>`).join('')}
+        </div>
+      </div>
+      <div style="display:grid;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:20px">👥</span>
+          <label style="min-width:120px;font-size:13px">Gasto de todos ($)</label>
+          <input type="number" id="rest-todos" min="0" step="0.01" value="0" style="width:110px;padding:5px 8px;border:1px solid var(--cr-border);border-radius:6px">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:20px">🥦</span>
+          <label style="min-width:120px;font-size:13px">Solo vegetarianos ($)</label>
+          <input type="number" id="rest-veg" min="0" step="0.01" value="0" style="width:110px;padding:5px 8px;border:1px solid var(--cr-border);border-radius:6px">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:20px">🥩</span>
+          <label style="min-width:120px;font-size:13px">Solo no vegetarianos ($)</label>
+          <input type="number" id="rest-noveg" min="0" step="0.01" value="0" style="width:110px;padding:5px 8px;border:1px solid var(--cr-border);border-radius:6px">
+        </div>
+        <div style="font-size:12px;color:var(--cr-muted);padding:4px 0">Los tres montos deben sumar el total del gasto.</div>
+      </div>`;
+    row.style.display='block';
   } else {
     row.style.display='none';
   }
@@ -3186,6 +3218,20 @@ async function guardarGasto() {
     if (Math.abs(total-monto)>0.5) { toast(`Los montos deben sumar $${monto}`); return; }
     porcentajes={};
     for(const p of participantes){ porcentajes[p]=Math.round(montos[p]/total*10000)/100; }
+  } else if (divType==='rest') {
+    const gastTodos = parseFloat(document.getElementById('rest-todos')?.value||0);
+    const gastVeg   = parseFloat(document.getElementById('rest-veg')?.value||0);
+    const gastNoVeg = parseFloat(document.getElementById('rest-noveg')?.value||0);
+    if (Math.abs(gastTodos + gastVeg + gastNoVeg - monto) > 0.5) { toast(`Los tres montos deben sumar $${monto.toFixed(2)}`); return; }
+    const vegSet = new Set(participantes.filter(p => document.getElementById('rest-veg-'+p)?.checked));
+    const nVeg = [...vegSet].filter(p=>participantes.includes(p)).length;
+    const nNoVeg = participantes.length - nVeg;
+    porcentajes={};
+    for (const p of participantes) {
+      const shareT = gastTodos / participantes.length;
+      const shareR = vegSet.has(p) ? (nVeg>0 ? gastVeg/nVeg : 0) : (nNoVeg>0 ? gastNoVeg/nNoVeg : 0);
+      porcentajes[p] = Math.round((shareT + shareR) / monto * 10000) / 100;
+    }
   }
   // recolectar pagadores
   const pagChecked = [...document.querySelectorAll('#g-pagadores input:checked')].map(c=>c.value);
@@ -3681,29 +3727,45 @@ async function generarLiquidacion() {
   const tickets = [];
 
   // Familia
-  familiaFue.forEach(uid => {
-    const pagado = pagadores[uid] || 0;
-    const debe = share - pagado;
-    const aQuien = pagChecked.filter(p => p !== uid);
-    tickets.push({ tipo: 'familia', uid, nombre: GUSERS[uid], share, pagado, debe, aQuien });
+  // Calcular créditos de cada pagador (lo que les deben los demás)
+  const creditos = {};
+  pagChecked.forEach(p => {
+    const credit = pagadores[p] - (familiaFue.includes(p) ? share : share);
+    if (credit > 0.5) creditos[p] = credit;
+  });
+  const totalCreditos = Object.values(creditos).reduce((a,b)=>a+b, 0);
+
+  // Función: dada una deuda neta, devuelve lista de {a, monto} distribuida proporcionalmente entre acreedores
+  function distribuirDeuda(deuda, excluir=[]) {
+    const acreedores = Object.entries(creditos).filter(([p])=>!excluir.includes(p));
+    const totalAcr = acreedores.reduce((s,[,c])=>s+c, 0);
+    if (totalAcr < 0.5) return [];
+    return acreedores.map(([p, c]) => ({
+      a: p, monto: Math.round(deuda * c / totalAcr * 100) / 100
+    })).filter(t => t.monto > 0.5);
+  }
+
+  familiaFue.forEach(u => {
+    const pagado = pagadores[u] || 0;
+    const debeNeto = share - pagado;
+    const transferencias = debeNeto > 0.5 ? distribuirDeuda(debeNeto, [u]) : [];
+    tickets.push({ tipo: 'familia', uid: u, nombre: GUSERS[u], share, pagado, debeNeto, transferencias });
   });
 
-  // Externos
   externosConfirmados.forEach(r => {
-    tickets.push({ tipo: 'externo', nombre: r.nombre, email: r.email || '', share, debe: share, aQuien: pagChecked });
+    const transferencias = distribuirDeuda(share, []);
+    tickets.push({ tipo: 'externo', nombre: r.nombre, email: r.email || '', share, pagado: 0, debeNeto: share, transferencias });
   });
 
   // Crear gasto automáticamente para familia
   if (familiaFue.length) {
+    const pct = {};
+    familiaFue.forEach(u => { pct[u] = Math.round(100 / familiaFue.length * 100) / 100; });
     const obj = {
       id: uid(), titulo: ev.nombre, categoria: 'Eventos', monto: total,
       participantes: familiaFue, fecha: new Date().toISOString().slice(0, 10),
-      pagadores, descripcion: 'Liquidación automática del evento', porcentajes: null
+      pagadores, descripcion: 'Liquidación automática del evento', porcentajes: pct
     };
-    // Porcentajes iguales para familia
-    const pct = {};
-    familiaFue.forEach(u => { pct[u] = Math.round(100 / familiaFue.length * 100) / 100; });
-    obj.porcentajes = pct;
     try {
       await dbInsert('gastos', obj);
       S.gastos.unshift(obj);
@@ -3713,29 +3775,28 @@ async function generarLiquidacion() {
 
   closeModal('cierre-evento-modal');
 
-  // Mostrar tickets
-  const pagosPorPagador = Object.entries(pagadores).map(([p, m]) =>
-    `${GUSERS[p] || p} (alias: ${MP_ALIAS[p] || '—'})`
-  ).join(', ');
-
   document.getElementById('tk-titulo').textContent = '🎟️ Liquidación — ' + esc(ev.nombre);
   document.getElementById('tk-body').innerHTML = `
     <p style="font-size:13px;color:var(--cr-muted);margin-bottom:1rem">Total: <b>$${total.toFixed(2)}</b> · ${totalAsistentes} asistentes · <b>$${share.toFixed(2)} por persona</b></p>
     ${tickets.map(t => {
-      const debePos = t.debe > 0.5;
-      const aciertos = t.aQuien.map(p => `<b>${GUSERS[p]}</b>${MP_ALIAS[p] ? ` — alias MP: <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">${MP_ALIAS[p]}</code>` : ''}`).join(' o ');
-      const copyText = t.aQuien.map(p => `${GUSERS[p]}${MP_ALIAS[p]?' ('+MP_ALIAS[p]+')':''}`).join(' o ');
-      const msg = encodeURIComponent(`Hola ${t.nombre}! 🏠 Liquidación de "${ev.nombre}": te corresponde $${t.share.toFixed(2)}. ${debePos ? `Transferí a ${copyText} y listo!` : 'Ya tenés todo cubierto ✅'}`);
+      const debePos = t.debeNeto > 0.5;
+      const transferRows = t.transferencias.map(tr =>
+        `<div style="display:flex;align-items:center;justify-content:space-between;background:#fef2f2;border-radius:8px;padding:6px 10px;margin-bottom:4px">
+          <span style="font-size:13px">→ <b>${GUSERS[tr.a]||tr.a}</b>${MP_ALIAS[tr.a] ? ` <span style="color:var(--cr-muted);font-size:11px">alias: <code style="background:#fff;padding:1px 5px;border-radius:4px">${MP_ALIAS[tr.a]}</code></span>` : ''}</span>
+          <span style="font-weight:700;color:#dc2626;font-size:14px">$${tr.monto.toFixed(2)}</span>
+        </div>`
+      ).join('');
+      const copyMsg = debePos
+        ? `Hola ${t.nombre}! 🏠 Liquidación de "${ev.nombre}": te corresponde $${t.share.toFixed(2)}. ${t.transferencias.map(tr=>`Transferí $${tr.monto.toFixed(2)} a ${GUSERS[tr.a]||tr.a}${MP_ALIAS[tr.a]?' ('+MP_ALIAS[tr.a]+')':''}`).join(' y ')}. ¡Gracias!`
+        : '';
       return `<div style="border:1px solid var(--cr-border);border-radius:10px;padding:.75rem 1rem;margin-bottom:.75rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
-          <div style="font-weight:700;font-size:15px">${t.tipo === 'familia' ? (avatar(t.uid,22)+' ') : '👤 '}${esc(t.nombre)}</div>
-          <div style="font-size:18px;font-weight:700;color:${debePos?'#dc2626':'#16a34a'}">${debePos?'-':'+'}$${Math.abs(t.debe).toFixed(2)}</div>
+          <div style="font-weight:700;font-size:15px">${t.tipo==='familia'?(avatar(t.uid,22)+' '):'👤 '}${esc(t.nombre)}</div>
+          <div style="font-size:18px;font-weight:700;color:${debePos?'#dc2626':'#16a34a'}">${debePos?'-':'+'}$${Math.abs(t.debeNeto).toFixed(2)}</div>
         </div>
-        <div style="font-size:13px;color:var(--cr-muted);margin-bottom:.4rem">Le corresponde: $${t.share.toFixed(2)}</div>
-        ${debePos
-          ? `<div style="font-size:13px;margin-bottom:.5rem">Transferí a ${aciertos}</div>`
-          : `<div style="font-size:13px;color:#16a34a">✅ Ya cubierto (pagó $${t.pagado?.toFixed(2)||'0.00'})</div>`}
-        ${debePos ? `<button onclick="navigator.clipboard.writeText('Hola ${esc(t.nombre)}! 🏠 Liquidación de \\'${esc(ev.nombre)}\\': te corresponde $${t.share.toFixed(2)}. Transferí a ${copyText} y listo!').then(()=>toast('¡Copiado!'))" style="font-size:12px;background:#f1f5f9;border:1px solid #ccc;border-radius:6px;padding:4px 10px;cursor:pointer">📋 Copiar mensaje</button>` : ''}
+        <div style="font-size:12px;color:var(--cr-muted);margin-bottom:.5rem">Le corresponde: $${t.share.toFixed(2)}${t.pagado>0?' · Pagó: $'+t.pagado.toFixed(2):''}</div>
+        ${debePos ? transferRows : '<div style="font-size:13px;color:#16a34a">✅ Ya cubierto — no debe nada</div>'}
+        ${debePos && copyMsg ? `<button onclick="navigator.clipboard.writeText(${JSON.stringify(copyMsg)}).then(()=>toast('¡Copiado!'))" style="margin-top:.4rem;font-size:12px;background:#f1f5f9;border:1px solid #ccc;border-radius:6px;padding:4px 10px;cursor:pointer">📋 Copiar mensaje</button>` : ''}
       </div>`;
     }).join('')}`;
   document.getElementById('tickets-modal').classList.add('open');
