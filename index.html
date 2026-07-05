@@ -3571,6 +3571,12 @@ function openRespuestasModal(eventoId) {
 // ── CIERRE Y LIQUIDACIÓN DE EVENTO ──────────────────────────────
 
 const MP_ALIAS = { feche: 'feche.cherny.21', nehue: 'nehuen.fesser', rodri: null, civo: 'francocriv.mp' };
+// Mapa nombre-de-amigo (lowercase) → userId de familia
+const AMIGO_A_FAMILIA = { feche: 'feche', fogo: 'rodri', nehue: 'nehue', civo: 'civo' };
+
+function amigoEsFamilia(nombre) {
+  return AMIGO_A_FAMILIA[(nombre||'').toLowerCase().trim()] || null;
+}
 
 function abrirCierreEvento(eventoId) {
   const ev = S.eventos.find(e => e.id === eventoId); if (!ev) return;
@@ -3578,16 +3584,26 @@ function abrirCierreEvento(eventoId) {
   document.getElementById('ce-titulo').textContent = '💰 Liquidar — ' + esc(ev.nombre);
   const confirmados = (ev.respuestas || []).filter(r => r.asiste === true);
 
+  // Separar: los que son familia (por nombre de amigo) vs externos reales
+  const familiaConfirmada = new Set();
+  const externosReales = [];
+  confirmados.forEach(r => {
+    const uid = amigoEsFamilia(r.nombre);
+    if (uid) familiaConfirmada.add(uid);
+    else externosReales.push(r);
+  });
+
   const familiaChecks = Object.entries(GUSERS).map(([k, nombre]) =>
     `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer">
-      <input type="checkbox" id="ce-fam-${k}" value="${k}" style="width:16px;height:16px">
+      <input type="checkbox" id="ce-fam-${k}" value="${k}" ${familiaConfirmada.has(k) ? 'checked' : ''} style="width:16px;height:16px">
       ${avatar(k, 22)} <span style="font-size:14px">${nombre}</span>
+      ${familiaConfirmada.has(k) ? '<span style="font-size:11px;color:#16a34a;font-weight:600">✅ confirmó</span>' : ''}
     </label>`
   ).join('');
 
-  const externosRows = confirmados.length
-    ? confirmados.map(r => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:14px">✅ <b>${esc(r.nombre)}</b> <span style="color:var(--cr-muted);font-size:12px">${esc(r.email||'')}</span></div>`).join('')
-    : '<p style="font-size:13px;color:var(--cr-muted)">Ningún externo confirmó asistencia.</p>';
+  const externosRows = externosReales.length
+    ? externosReales.map(r => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:14px">✅ <b>${esc(r.nombre)}</b> <span style="color:var(--cr-muted);font-size:12px">${esc(r.email||'')}</span></div>`).join('')
+    : '<p style="font-size:13px;color:var(--cr-muted)">Ningún amigo externo confirmó asistencia.</p>';
 
   const pagadoresChecks = Object.entries(GUSERS).map(([k, nombre]) =>
     `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer">
@@ -3642,8 +3658,8 @@ async function generarLiquidacion() {
 
   // Familia que fue
   const familiaFue = [...document.querySelectorAll('#ce-familia input:checked')].map(c => c.value);
-  // Externos confirmados
-  const externosConfirmados = (ev.respuestas || []).filter(r => r.asiste === true);
+  // Solo externos reales (excluir los que son familia por nombre de amigo)
+  const externosConfirmados = (ev.respuestas || []).filter(r => r.asiste === true && !amigoEsFamilia(r.nombre));
   const totalAsistentes = familiaFue.length + externosConfirmados.length;
   if (totalAsistentes === 0) { toast('Seleccioná al menos un asistente'); return; }
 
