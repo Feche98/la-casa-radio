@@ -1324,6 +1324,29 @@
   </div>
 </div>
 
+<!-- CIERRE EVENTO MODAL -->
+<div class="modal-overlay" id="cierre-evento-modal">
+  <div class="modal" style="max-width:500px;max-height:90vh;overflow-y:auto">
+    <h3 id="ce-titulo">💰 Liquidar evento</h3>
+    <div id="ce-body"></div>
+    <div class="modal-footer" id="ce-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('cierre-evento-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="generarLiquidacion()">Generar tickets →</button>
+    </div>
+  </div>
+</div>
+
+<!-- TICKETS LIQUIDACION MODAL -->
+<div class="modal-overlay" id="tickets-modal">
+  <div class="modal" style="max-width:500px;max-height:90vh;overflow-y:auto">
+    <h3 id="tk-titulo">🎟️ Liquidación</h3>
+    <div id="tk-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('tickets-modal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TEMPLATE MODAL -->
 <div class="modal-overlay" id="template-modal">
   <div class="modal" style="max-width:560px">
@@ -3346,6 +3369,7 @@ function renderEventos() {
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
         <button class="btn btn-sm btn-primary" onclick="abrirListaEvento('${ev.id}')">🛒 Lista</button>
         <button class="btn btn-sm btn-ghost" onclick="openInvitarModal('${ev.id}')">📩 Invitar</button>
+        <button class="btn btn-sm" style="background:#16a34a;color:#fff;border:none" onclick="abrirCierreEvento('${ev.id}')">💰 Liquidar</button>
         <div style="display:flex;gap:4px">
           <button class="btn-icon" onclick="openEventoModal('${ev.id}')">✏️</button>
           <button class="btn-icon" onclick="eliminarEvento('${ev.id}')">🗑</button>
@@ -3542,6 +3566,163 @@ function openRespuestasModal(eventoId) {
     return `<div class="resp-row"><span style="font-size:18px">${icon}</span><div><div style="font-weight:600">${esc(r.nombre)}${veg}</div><div style="font-size:12px;color:var(--cr-muted)">${esc(r.email||'')}${r.fecha?' · '+fmtDate(r.fecha.slice(0,10)):''}</div>${itemsStr}${traeStr}</div></div>`;
   }).join('') : '<p class="text-muted">Nadie respondió todavía.</p>';
   document.getElementById('respuestas-modal').classList.add('open');
+}
+
+// ── CIERRE Y LIQUIDACIÓN DE EVENTO ──────────────────────────────
+
+const MP_ALIAS = { feche: 'feche.cherny.21', nehue: 'nehuen.fesser', rodri: null, civo: 'francocriv.mp' };
+
+function abrirCierreEvento(eventoId) {
+  const ev = S.eventos.find(e => e.id === eventoId); if (!ev) return;
+  window._cierreEventoId = eventoId;
+  document.getElementById('ce-titulo').textContent = '💰 Liquidar — ' + esc(ev.nombre);
+  const confirmados = (ev.respuestas || []).filter(r => r.asiste === true);
+
+  const familiaChecks = Object.entries(GUSERS).map(([k, nombre]) =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer">
+      <input type="checkbox" id="ce-fam-${k}" value="${k}" style="width:16px;height:16px">
+      ${avatar(k, 22)} <span style="font-size:14px">${nombre}</span>
+    </label>`
+  ).join('');
+
+  const externosRows = confirmados.length
+    ? confirmados.map(r => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:14px">✅ <b>${esc(r.nombre)}</b> <span style="color:var(--cr-muted);font-size:12px">${esc(r.email||'')}</span></div>`).join('')
+    : '<p style="font-size:13px;color:var(--cr-muted)">Ningún externo confirmó asistencia.</p>';
+
+  const pagadoresChecks = Object.entries(GUSERS).map(([k, nombre]) =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer">
+      <input type="checkbox" id="ce-pag-${k}" value="${k}" onchange="toggleCiePagadores()" style="width:16px;height:16px">
+      ${avatar(k, 22)} <span style="font-size:14px">${nombre}</span>
+    </label>`
+  ).join('');
+
+  document.getElementById('ce-body').innerHTML = `
+    <div style="margin-bottom:1rem">
+      <div style="font-size:12px;font-weight:700;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Familia que fue</div>
+      <div id="ce-familia">${familiaChecks}</div>
+    </div>
+    ${confirmados.length ? `<div style="margin-bottom:1rem">
+      <div style="font-size:12px;font-weight:700;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Amigos confirmados</div>
+      ${externosRows}
+    </div>` : ''}
+    <div style="margin-bottom:1rem">
+      <div style="font-size:12px;font-weight:700;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Total del evento ($)</div>
+      <input type="number" id="ce-total" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:8px 12px;border:1px solid var(--cr-border);border-radius:8px;font-size:16px;font-weight:600">
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">¿Quién pagó?</div>
+      <div id="ce-pagadores">${pagadoresChecks}</div>
+      <div id="ce-pag-montos" style="display:none;margin-top:.5rem"></div>
+    </div>`;
+  document.getElementById('cierre-evento-modal').classList.add('open');
+}
+
+function toggleCiePagadores() {
+  const checked = [...document.querySelectorAll('#ce-pagadores input:checked')].map(c => c.value);
+  const montosDiv = document.getElementById('ce-pag-montos');
+  if (checked.length > 1) {
+    const total = parseFloat(document.getElementById('ce-total').value) || 0;
+    const share = Math.round(total / checked.length * 100) / 100;
+    montosDiv.innerHTML = checked.map(p =>
+      `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        ${avatar(p, 20)} <label style="font-size:13px;min-width:60px">${GUSERS[p]}</label>
+        <input type="number" id="ce-pm-${p}" value="${share}" style="width:120px;padding:5px 8px;border:1px solid var(--cr-border);border-radius:6px"> <span>$</span>
+      </div>`
+    ).join('');
+    montosDiv.style.display = 'block';
+  } else {
+    montosDiv.style.display = 'none';
+  }
+}
+
+async function generarLiquidacion() {
+  const ev = S.eventos.find(e => e.id === window._cierreEventoId); if (!ev) return;
+  const total = parseFloat(document.getElementById('ce-total').value);
+  if (!total || total <= 0) { toast('Ingresá el total del evento'); return; }
+
+  // Familia que fue
+  const familiaFue = [...document.querySelectorAll('#ce-familia input:checked')].map(c => c.value);
+  // Externos confirmados
+  const externosConfirmados = (ev.respuestas || []).filter(r => r.asiste === true);
+  const totalAsistentes = familiaFue.length + externosConfirmados.length;
+  if (totalAsistentes === 0) { toast('Seleccioná al menos un asistente'); return; }
+
+  // Pagadores
+  const pagChecked = [...document.querySelectorAll('#ce-pagadores input:checked')].map(c => c.value);
+  if (!pagChecked.length) { toast('Seleccioná quién pagó'); return; }
+  const pagadores = {};
+  if (pagChecked.length > 1) {
+    pagChecked.forEach(p => { pagadores[p] = parseFloat(document.getElementById('ce-pm-' + p)?.value) || 0; });
+    const sumPag = Object.values(pagadores).reduce((a, b) => a + b, 0);
+    if (Math.abs(sumPag - total) > 1) { toast(`Los montos de los pagadores deben sumar $${total.toFixed(2)}`); return; }
+  } else {
+    pagadores[pagChecked[0]] = total;
+  }
+
+  const share = Math.round(total / totalAsistentes * 100) / 100;
+
+  // Generar tickets
+  const tickets = [];
+
+  // Familia
+  familiaFue.forEach(uid => {
+    const pagado = pagadores[uid] || 0;
+    const debe = share - pagado;
+    const aQuien = pagChecked.filter(p => p !== uid);
+    tickets.push({ tipo: 'familia', uid, nombre: GUSERS[uid], share, pagado, debe, aQuien });
+  });
+
+  // Externos
+  externosConfirmados.forEach(r => {
+    tickets.push({ tipo: 'externo', nombre: r.nombre, email: r.email || '', share, debe: share, aQuien: pagChecked });
+  });
+
+  // Crear gasto automáticamente para familia
+  if (familiaFue.length) {
+    const obj = {
+      id: uid(), titulo: ev.nombre, categoria: 'Eventos', monto: total,
+      participantes: familiaFue, fecha: new Date().toISOString().slice(0, 10),
+      pagadores, descripcion: 'Liquidación automática del evento', porcentajes: null
+    };
+    // Porcentajes iguales para familia
+    const pct = {};
+    familiaFue.forEach(u => { pct[u] = Math.round(100 / familiaFue.length * 100) / 100; });
+    obj.porcentajes = pct;
+    try {
+      await dbInsert('gastos', obj);
+      S.gastos.unshift(obj);
+      renderGastos();
+    } catch(e) { toast('Error al crear el gasto'); }
+  }
+
+  closeModal('cierre-evento-modal');
+
+  // Mostrar tickets
+  const pagosPorPagador = Object.entries(pagadores).map(([p, m]) =>
+    `${GUSERS[p] || p} (alias: ${MP_ALIAS[p] || '—'})`
+  ).join(', ');
+
+  document.getElementById('tk-titulo').textContent = '🎟️ Liquidación — ' + esc(ev.nombre);
+  document.getElementById('tk-body').innerHTML = `
+    <p style="font-size:13px;color:var(--cr-muted);margin-bottom:1rem">Total: <b>$${total.toFixed(2)}</b> · ${totalAsistentes} asistentes · <b>$${share.toFixed(2)} por persona</b></p>
+    ${tickets.map(t => {
+      const debePos = t.debe > 0.5;
+      const aciertos = t.aQuien.map(p => `<b>${GUSERS[p]}</b>${MP_ALIAS[p] ? ` — alias MP: <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">${MP_ALIAS[p]}</code>` : ''}`).join(' o ');
+      const copyText = t.aQuien.map(p => `${GUSERS[p]}${MP_ALIAS[p]?' ('+MP_ALIAS[p]+')':''}`).join(' o ');
+      const msg = encodeURIComponent(`Hola ${t.nombre}! 🏠 Liquidación de "${ev.nombre}": te corresponde $${t.share.toFixed(2)}. ${debePos ? `Transferí a ${copyText} y listo!` : 'Ya tenés todo cubierto ✅'}`);
+      return `<div style="border:1px solid var(--cr-border);border-radius:10px;padding:.75rem 1rem;margin-bottom:.75rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+          <div style="font-weight:700;font-size:15px">${t.tipo === 'familia' ? (avatar(t.uid,22)+' ') : '👤 '}${esc(t.nombre)}</div>
+          <div style="font-size:18px;font-weight:700;color:${debePos?'#dc2626':'#16a34a'}">${debePos?'-':'+'}$${Math.abs(t.debe).toFixed(2)}</div>
+        </div>
+        <div style="font-size:13px;color:var(--cr-muted);margin-bottom:.4rem">Le corresponde: $${t.share.toFixed(2)}</div>
+        ${debePos
+          ? `<div style="font-size:13px;margin-bottom:.5rem">Transferí a ${aciertos}</div>`
+          : `<div style="font-size:13px;color:#16a34a">✅ Ya cubierto (pagó $${t.pagado?.toFixed(2)||'0.00'})</div>`}
+        ${debePos ? `<button onclick="navigator.clipboard.writeText('Hola ${esc(t.nombre)}! 🏠 Liquidación de \\'${esc(ev.nombre)}\\': te corresponde $${t.share.toFixed(2)}. Transferí a ${copyText} y listo!').then(()=>toast('¡Copiado!'))" style="font-size:12px;background:#f1f5f9;border:1px solid #ccc;border-radius:6px;padding:4px 10px;cursor:pointer">📋 Copiar mensaje</button>` : ''}
+      </div>`;
+    }).join('')}`;
+  document.getElementById('tickets-modal').classList.add('open');
 }
 
 // ── PÁGINA PÚBLICA RSVP ─────────────────────────────────────────
