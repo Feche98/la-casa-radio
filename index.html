@@ -416,6 +416,7 @@
           <h2>🛋️ Living de Amigos</h2>
           <span class="badge badge-vip">Solo amigos</span>
         </div>
+        <div id="vip-deudas-card" style="display:none;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--cr-border)"></div>
         <div id="vip-eventos-card" style="display:none;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--cr-border)">
           <div style="font-weight:700;font-size:13px;color:var(--cr-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem">🎉 Eventos — confirmá tu asistencia</div>
           <div id="vip-eventos"></div>
@@ -2639,9 +2640,45 @@ function updateSubUI() {
   }
 }
 
+function renderVipDeudas() {
+  const card = document.getElementById('vip-deudas-card'); if (!card) return;
+  if (!subSession) { card.style.display = 'none'; return; }
+  const email = (subSession.email || '').toLowerCase().trim();
+  const nombre = (subSession.nombre || '').toLowerCase().trim();
+  const deudas = [];
+  S.eventos.forEach(ev => {
+    if (!ev.liquidacion?.deudas) return;
+    ev.liquidacion.deudas.forEach(d => {
+      if ((d.email||'').toLowerCase().trim() === email || (d.nombre||'').toLowerCase().trim() === nombre) {
+        deudas.push({ evento: ev.nombre, fecha: ev.liquidacion.fecha, monto: d.monto, transferencias: d.transferencias });
+      }
+    });
+  });
+  if (!deudas.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  card.innerHTML = `
+    <div style="font-weight:700;font-size:13px;color:#dc2626;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem">💸 Tenés deudas pendientes</div>
+    ${deudas.map(d => {
+      const transf = d.transferencias.map(tr =>
+        `<div style="margin-top:4px;font-size:13px">→ <b>${GUSERS[tr.a]||tr.a}</b> <b style="color:#dc2626">$${tr.monto.toFixed(2)}</b>${MP_ALIAS[tr.a] ? ` <span style="color:var(--cr-muted);font-size:11px">alias: <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">${MP_ALIAS[tr.a]}</code></span>` : ''}</div>`
+      ).join('');
+      return `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:.6rem .9rem;margin-bottom:.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:600;font-size:14px">🎉 ${esc(d.evento)}</span>
+          <span style="font-weight:700;color:#dc2626;font-size:15px">-$${d.monto.toFixed(2)}</span>
+        </div>
+        ${d.fecha ? `<div style="font-size:11px;color:var(--cr-muted);margin-bottom:4px">${fmtDate(d.fecha)}</div>` : ''}
+        ${transf}
+      </div>`;
+    }).join('')}
+    <p style="font-size:11px;color:var(--cr-muted);margin:.3rem 0 0;font-style:italic">Una vez que transferís avisale a la familia para que lo registren ✅</p>`;
+}
+
 function renderVipFeed() {
   const news=S.news.filter(n=>n.visibilidad==='vip'||n.visibilidad==='adelanto');
   const el=document.getElementById('vip-feed'); if(!el) return;
+
+  renderVipDeudas();
 
   // Eventos con invitación activa a los que pertenece este amigo
   const sub = subSession ? S.suscriptores.find(s=>s.id===subSession.id) : null;
@@ -3789,6 +3826,15 @@ async function generarLiquidacion() {
       S.gastos.unshift(obj);
       renderGastos();
     } catch(e) { toast('Error al crear el gasto'); }
+  }
+
+  // Guardar deudas de externos en el evento para notificarles
+  const deudasExternos = tickets
+    .filter(t => t.tipo === 'externo' && t.debeNeto > 0.5)
+    .map(t => ({ nombre: t.nombre, email: t.email, monto: t.debeNeto, transferencias: t.transferencias }));
+  if (deudasExternos.length) {
+    ev.liquidacion = { fecha: new Date().toISOString().slice(0, 10), deudas: deudasExternos };
+    try { await dbUpdate('eventos', ev); } catch(e) {}
   }
 
   closeModal('cierre-evento-modal');
