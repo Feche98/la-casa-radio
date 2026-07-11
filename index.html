@@ -1604,7 +1604,13 @@ const USERS = {
   nehue: { nombre:'Nehue', initials:'NE', cls:'avatar-nehue' },
   civo:  { nombre:'Civo',  initials:'CI', cls:'avatar-civo'  },
 };
-const HOUSE_PWD = 'lcr2536';
+const HOUSE_PWD_HASH = 'd956767674ab73bb745ab6755ee3f4391c6c7690d4978ab6fc61dc88486933eb';
+
+async function checkPwd(input) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  const hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  return hash === HOUSE_PWD_HASH;
+}
 
 function avatar(uid, size=28) {
   const u = USERS[uid];
@@ -1615,12 +1621,13 @@ function userName(uid) { return USERS[uid]?.nombre || uid || '?'; }
 
 let currentUser = null;
 
-function doLogin() {
+async function doLogin() {
   const sel = document.querySelector('.user-card.selected');
   const pwd = document.getElementById('login-pwd').value;
   const err = document.getElementById('login-error');
   if (!sel) { err.textContent='Seleccioná tu usuario'; err.style.display=''; return; }
-  if (pwd !== HOUSE_PWD) { err.textContent='Contraseña incorrecta'; err.style.display=''; return; }
+  const ok = await checkPwd(pwd);
+  if (!ok) { err.textContent='Contraseña incorrecta'; err.style.display=''; return; }
   err.style.display='none';
   currentUser = sel.dataset.user;
   DB.set('current_user', currentUser);
