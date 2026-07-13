@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>La Casa Radio</title>
+<link rel="manifest" href="/la-casa-radio/manifest.json">
+<meta name="theme-color" content="#6c47ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="La Casa Radio">
+<link rel="apple-touch-icon" href="/la-casa-radio/logo.png">
 <script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -5571,6 +5577,10 @@ async function enviarMateNotif(tipo) {
     checkDeudaMail();
   }
 })();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/la-casa-radio/sw.js');
+}
 </script>
 </body>
 </html>
