@@ -83,12 +83,15 @@ Deno.serve(async (req) => {
   const payload = JSON.stringify({ title, body, url: url || '/' });
 
   const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-  const { data: subs } = await sb.from('push_subscriptions')
-    .select('subscription')
-    .in('user_key', user_keys);
+  const { data: rows } = await sb.from('push_subscriptions').select('data');
+
+  const subs = (rows || [])
+    .filter(r => user_keys.includes(r.data?.user_key))
+    .map(r => r.data?.subscription)
+    .filter(Boolean);
 
   const results = await Promise.allSettled(
-    (subs || []).map(row => sendPush(JSON.parse(row.subscription), payload))
+    subs.map(s => sendPush(JSON.parse(s), payload))
   );
 
   return new Response(JSON.stringify({ sent: results.length }), {
