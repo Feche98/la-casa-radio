@@ -1187,9 +1187,13 @@
 <!-- NOTIFICACIONES -->
 <div class="modal-overlay" id="notif-modal">
   <div class="modal" style="max-width:440px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
       <h3 style="margin:0">🔔 Alertas</h3>
       <button class="btn btn-ghost btn-sm" onclick="marcarVisto();closeModal('notif-modal')">Marcar todo como visto</button>
+    </div>
+    <div id="notif-push-banner" style="display:flex;align-items:center;justify-content:space-between;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:.6rem .85rem;margin-bottom:1rem;font-size:13px;gap:8px">
+      <span id="notif-push-label">🔕 Notificaciones push desactivadas</span>
+      <button id="notif-push-btn" onclick="togglePushNotif()" style="background:#6c47ff;color:#fff;border:none;border-radius:6px;padding:3px 12px;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap">Activar</button>
     </div>
     <div id="notif-body"></div>
   </div>
@@ -2991,6 +2995,7 @@ function updateNotifBadge() {
 }
 
 function openNotificaciones() {
+  updatePushBanner();
   const alerts = getAlerts();
   const body = document.getElementById('notif-body');
   const parts = [];
@@ -5497,15 +5502,61 @@ function renderMateBadge() {
   else { badge.style.display = 'none'; }
 }
 
+function updatePushBanner() {
+  const banner = document.getElementById('notif-push-banner');
+  const label = document.getElementById('notif-push-label');
+  const btn = document.getElementById('notif-push-btn');
+  if (!banner) return;
+  const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'denied';
+  if (perm === 'granted') {
+    label.textContent = '🔔 Notificaciones push activadas';
+    btn.textContent = 'Desactivar';
+    btn.style.background = '#e5e7eb';
+    btn.style.color = '#374151';
+  } else if (perm === 'denied') {
+    label.textContent = '🚫 Permiso denegado — habilitalo desde el candado en la URL';
+    btn.style.display = 'none';
+  } else {
+    label.textContent = '🔕 Notificaciones push desactivadas';
+    btn.textContent = 'Activar';
+    btn.style.background = '#6c47ff';
+    btn.style.color = '#fff';
+    btn.style.display = '';
+  }
+}
+
+async function togglePushNotif() {
+  const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'denied';
+  if (perm === 'granted') {
+    // Desuscribir
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await sub.unsubscribe();
+        const id = currentUser + '_' + btoa(sub.endpoint).slice(-16);
+        await _SB.from('push_subscriptions').delete().eq('id', id);
+      }
+      toast('🔕 Notificaciones desactivadas');
+      updatePushBanner();
+    } catch(e) { toast('Error al desactivar'); }
+  } else {
+    await pedirPermisoNotif();
+  }
+}
+
 async function pedirPermisoNotif() {
   try {
     const result = await Notification.requestPermission();
-    const banner = document.getElementById('mate-notif-banner');
+    const mateBanner = document.getElementById('mate-notif-banner');
     if (result === 'granted') {
-      if (banner) banner.style.display = 'none';
+      if (mateBanner) mateBanner.style.display = 'none';
       toast('✅ Notificaciones activadas');
       if (currentUser) await suscribirPush(currentUser);
-    } else { if (banner) banner.querySelector('span').textContent = '🔕 Permiso denegado. Habilitalo desde el candado en la barra de dirección.'; }
+    } else {
+      if (mateBanner) mateBanner.querySelector('span').textContent = '🔕 Permiso denegado. Habilitalo desde el candado en la barra de dirección.';
+    }
+    updatePushBanner();
   } catch(e) { toast('Tu navegador no soporta notificaciones'); }
 }
 
