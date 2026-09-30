@@ -1418,6 +1418,7 @@ function urlB64ToUint8(b) {
 }
 
 async function suscribirPush(userKey) {
+  if (DB.get('push_desactivado_' + userKey)) return;
   try {
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
@@ -3015,9 +3016,7 @@ function openNotificaciones() {
 
   const hayAlertas = parts.length > 0;
   body.innerHTML = hayAlertas
-    ? parts.join('') + `<div style="margin-top:1rem;padding-top:1rem;border-top:.5px solid var(--cr-border)">
-        <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center" onclick="enviarResumenFamilia()">📧 Notificar a todos por mail</button>
-      </div>`
+    ? parts.join('')
     : '<div class="empty-state" style="padding:2rem 0"><div class="ei">✅</div><p>Todo en orden, no hay alertas.</p></div>';
 
   document.getElementById('notif-modal').classList.add('open');
@@ -3048,6 +3047,8 @@ async function enviarResumenFamilia() {
 
 function marcarVisto() {
   DB.set('notif_seen_' + currentUser, new Date().toISOString());
+  // Marcar amigos actuales como vistos
+  if (S.suscriptores) S.suscriptores.forEach(s => DB.set('sub_seen_' + s.id, '1'));
   updateNotifBadge();
 }
 
@@ -5408,10 +5409,10 @@ let _mateSeenIds = new Set();
 let _mateDestinatario = null;
 
 const MATE_TIPOS = {
-  pedir:    { emoji:'🧉', label:'Pedir mate',              msg: n => (USERS[n.de]?.nombre||n.de) + ' te está pidiendo mate 🧉' },
-  va_mate:  { emoji:'🚛', label:'Te mando el mate',        msg: n => (USERS[n.de]?.nombre||n.de) + ' te manda el mate con el camioncito 🚛' },
-  devolver: { emoji:'↩️', label:'Devolveme el mate',       msg: n => (USERS[n.de]?.nombre||n.de) + ' quiere que le devuelvas el mate ↩️' },
-  listo:    { emoji:'✅', label:'Mate listo para retirar', msg: n => (USERS[n.de]?.nombre||n.de) + ' dice que el mate está listo ✅' },
+  pedir:    { emoji:'🧉', label:'Pedir mate',              msg: n => '¡' + (USERS[n.de]?.nombre||n.de) + ' te está pidiendo mate! ¿Se lo cebás? 🧉' },
+  va_mate:  { emoji:'🚛', label:'Te mando el mate',        msg: n => (USERS[n.de]?.nombre||n.de) + ' te manda el mate con el camioncito 🚛💨 ¡Agárrate!' },
+  devolver: { emoji:'↩️', label:'Devolveme el mate',       msg: n => (USERS[n.de]?.nombre||n.de) + ' quiere que le devuelvas el mate ↩️ ¡Andá devolvélo!' },
+  listo:    { emoji:'✅', label:'Mate listo para retirar', msg: n => '¡El mate está listo! ' + (USERS[n.de]?.nombre||n.de) + ' ya lo cebó ✅ ¡Dale que se enfría!' },
 };
 
 function playMateSound() {
@@ -5456,20 +5457,28 @@ function renderMateBadge() {
   else { badge.style.display = 'none'; }
 }
 
+function isPushActivo() {
+  if ((typeof Notification === 'undefined') || Notification.permission !== 'granted') return false;
+  return !DB.get('push_desactivado_' + currentUser);
+}
+
 function updatePushBanner() {
   const banner = document.getElementById('notif-push-banner');
   const label = document.getElementById('notif-push-label');
   const btn = document.getElementById('notif-push-btn');
   if (!banner) return;
   const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'denied';
-  if (perm === 'granted') {
+  if (perm === 'denied') {
+    label.textContent = '🚫 Permiso denegado — habilitalo desde el candado en la URL';
+    btn.style.display = 'none';
+    return;
+  }
+  if (isPushActivo()) {
     label.textContent = '🔔 Notificaciones push activadas';
     btn.textContent = 'Desactivar';
     btn.style.background = '#e5e7eb';
     btn.style.color = '#374151';
-  } else if (perm === 'denied') {
-    label.textContent = '🚫 Permiso denegado — habilitalo desde el candado en la URL';
-    btn.style.display = 'none';
+    btn.style.display = '';
   } else {
     label.textContent = '🔕 Notificaciones push desactivadas';
     btn.textContent = 'Activar';
@@ -5480,9 +5489,7 @@ function updatePushBanner() {
 }
 
 async function togglePushNotif() {
-  const perm = (typeof Notification !== 'undefined') ? Notification.permission : 'denied';
-  if (perm === 'granted') {
-    // Desuscribir
+  if (isPushActivo()) {
     try {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
@@ -5491,10 +5498,12 @@ async function togglePushNotif() {
         const id = currentUser + '_' + btoa(sub.endpoint).slice(-16);
         await _SB.from('push_subscriptions').delete().eq('id', id);
       }
+      DB.set('push_desactivado_' + currentUser, '1');
       toast('🔕 Notificaciones desactivadas');
       updatePushBanner();
     } catch(e) { toast('Error al desactivar'); }
   } else {
+    DB.set('push_desactivado_' + currentUser, null);
     await pedirPermisoNotif();
   }
 }
@@ -5578,7 +5587,7 @@ async function enviarMateNotif(tipo) {
     renderMateModal();
     const tipoData = MATE_TIPOS[tipo] || {};
     toast((tipoData.emoji||'') + ' ¡Notificación enviada!');
-    pushNotif([_mateDestinatario], (tipoData.emoji||'🧉') + ' ' + (tipoData.label||'Mate'), `${GUSERS[currentUser]||currentUser} te mandó un mate`, '/la-casa-radio/#tab/personal');
+    pushNotif([_mateDestinatario], (tipoData.emoji||'🧉') + ' Mate', tipoData.msg ? tipoData.msg(obj) : (GUSERS[currentUser]||currentUser) + ' te mandó un mate', '/la-casa-radio/#tab/personal');
   } catch(e) { toast('Error al enviar'); }
 }
 (async function init() {
