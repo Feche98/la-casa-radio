@@ -1405,6 +1405,34 @@ const _SB = supabase.createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttemNpa3ltZ3VoeHJtcHlhdG5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NjUzMTgsImV4cCI6MjA5ODA0MTMxOH0.L8bZI2x3fGgHreI0I5NHvueGdfxhaR9Nv_Xx7N2LQ7Y'
 );
 
+// ── PUSH NOTIFICATIONS ────────────────────────────────────────
+const VAPID_PUBLIC_KEY = 'BPGYi_A8IsrrSmkusF3OclMb8W7kYUfiHG3gjmd2q9QRe9S7Rkgyi2APnEPR_3Jzf5dVCsIBTL7FlTAomQheYY8';
+const PUSH_EDGE_URL = 'https://kmzcikymguhxrmpyatnj.supabase.co/functions/v1/send-push';
+
+function urlB64ToUint8(b) {
+  const p = (b+'===').slice(0, b.length+3-(b.length+3)%4).replace(/-/g,'+').replace(/_/g,'/');
+  return Uint8Array.from(atob(p), c=>c.charCodeAt(0));
+}
+
+async function suscribirPush(userKey) {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: urlB64ToUint8(VAPID_PUBLIC_KEY) });
+    await _SB.from('push_subscriptions').upsert({ id: userKey+'_'+btoa(sub.endpoint).slice(-16), data: { user_key: userKey, subscription: JSON.stringify(sub) } });
+  } catch(e) { console.warn('Push subscription failed', e); }
+}
+
+async function pushNotif(userKeys, title, body, url) {
+  try {
+    await fetch(PUSH_EDGE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttemNpa3ltZ3VoeHJtcHlhdG5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NjUzMTgsImV4cCI6MjA5ODA0MTMxOH0.L8bZI2x3fGgHreI0I5NHvueGdfxhaR9Nv_Xx7N2LQ7Y` },
+      body: JSON.stringify({ user_keys: userKeys, title, body, url })
+    });
+  } catch(e) { console.warn('Push send failed', e); }
+}
+
 // ── ESTADO EN MEMORIA ─────────────────────────────────────────
 const S = { news:[], tareas:[], stock:[], passwords:[], notas:[], suscriptores:[], votaciones:[], comentarios:[], compras:[], personal:[], turnos:[], gastos:[], eventos:[], mateNotifs:[] };
 
@@ -1583,6 +1611,9 @@ async function enviarEmail(to_email, titulo, cuerpo) {
 }
 
 async function notificarFamilia(titulo, cuerpo) {
+  // Push a todos
+  pushNotif(['feche','rodri','nehue','civo'], titulo, cuerpo, '/la-casa-radio/');
+  // Mail (mantener como fallback)
   let ok = 0;
   for (const email of Object.values(FAMILY_EMAILS)) {
     try { await enviarEmail(email, titulo, cuerpo); ok++; }
@@ -1895,6 +1926,9 @@ async function guardarTarea() {
     } else {
       await dbInsert('tareas', obj);
       S.tareas.push(obj);
+      if (obj.asignadoA && obj.asignadoA !== currentUser) {
+        pushNotif([obj.asignadoA], '📋 Nueva tarea asignada', `${GUSERS[currentUser]||currentUser} te asignó: ${obj.nombre}`, '/la-casa-radio/#tab/tareas');
+      }
     }
     closeModal('tarea-modal'); toast(editId?'Tarea actualizada':'¡Tarea agregada!'); renderTareas();
   } catch(e) { toast('Error al guardar'); }
@@ -5475,8 +5509,11 @@ async function pedirPermisoNotif() {
   try {
     const result = await Notification.requestPermission();
     const banner = document.getElementById('mate-notif-banner');
-    if (result === 'granted') { if (banner) banner.style.display = 'none'; toast('✅ Notificaciones activadas'); }
-    else { if (banner) banner.querySelector('span').textContent = '🔕 Permiso denegado. Habilitalo desde el candado en la barra de dirección.'; }
+    if (result === 'granted') {
+      if (banner) banner.style.display = 'none';
+      toast('✅ Notificaciones activadas');
+      if (currentUser) await suscribirPush(currentUser);
+    } else { if (banner) banner.querySelector('span').textContent = '🔕 Permiso denegado. Habilitalo desde el candado en la barra de dirección.'; }
   } catch(e) { toast('Tu navegador no soporta notificaciones'); }
 }
 
@@ -5542,7 +5579,9 @@ async function enviarMateNotif(tipo) {
     S.mateNotifs.push(obj);
     _mateSeenIds.add(obj.id);
     renderMateModal();
-    toast((MATE_TIPOS[tipo]?.emoji||'') + ' ¡Notificación enviada!');
+    const tipoData = MATE_TIPOS[tipo] || {};
+    toast((tipoData.emoji||'') + ' ¡Notificación enviada!');
+    pushNotif([_mateDestinatario], (tipoData.emoji||'🧉') + ' ' + (tipoData.label||'Mate'), `${GUSERS[currentUser]||currentUser} te mandó un mate`, '/la-casa-radio/#tab/personal');
   } catch(e) { toast('Error al enviar'); }
 }
 (async function init() {
@@ -5569,7 +5608,11 @@ async function enviarMateNotif(tipo) {
   if (subSession) { renderVipFeed(); renderVotacionesPub(); }
   if (currentUser) updateNotifBadge();
   if (currentUser) {
-    if (Notification.permission === 'default') Notification.requestPermission();
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().then(r => { if (r === 'granted') suscribirPush(currentUser); });
+    } else if (Notification.permission === 'granted') {
+      suscribirPush(currentUser);
+    }
     // Seed seen IDs with existing notifications so we dont alert on load
     S.mateNotifs.filter(n => n.para === currentUser).forEach(n => _mateSeenIds.add(n.id));
     renderMateBadge();
