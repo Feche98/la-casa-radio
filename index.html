@@ -10,7 +10,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="La Casa Radio">
 <link rel="apple-touch-icon" href="/la-casa-radio/logo.png">
-<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
@@ -1488,17 +1487,6 @@ async function loadAll() {
   ld.style.display = 'none';
 }
 
-// ── EMAILJS ───────────────────────────────────────────────────
-emailjs.init({ publicKey: 'bDaUYXgNCm6nR-eWd' });
-const EMAILJS_SERVICE = 'service_43v4j16';
-const EMAILJS_TEMPLATE = 'template_lb5pnig';
-
-const FAMILY_EMAILS = {
-  feche: 'fedecherny@gmail.com',
-  rodri: 'rodrydeiu@gmail.com',
-  nehue: 'nehuenafesser@hotmail.com',
-  civo:  'francrivaro@gmail.com',
-};
 
 const EVENTO_TEMPLATES_DEFAULT = [
   {
@@ -1610,24 +1598,8 @@ const EVENTO_TEMPLATES_DEFAULT = [
   },
 ];
 
-async function enviarEmail(to_email, titulo, cuerpo) {
-  await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, { to_email, titulo, cuerpo });
-}
-
 async function notificarFamilia(titulo, cuerpo) {
   await pushNotif(['feche','rodri','nehue','civo'], titulo, cuerpo, '/la-casa-radio/');
-}
-
-async function notificarSuscriptores(titulo, cuerpo) {
-  if (!S.suscriptores.length) return;
-  let enviados = 0;
-  for (const s of S.suscriptores) {
-    try {
-      await enviarEmail(s.email, titulo, cuerpo);
-      enviados++;
-    } catch(e) { console.warn('Error enviando a', s.email, e); }
-  }
-  if (enviados > 0) toast(`📧 Notificación enviada a ${enviados} amigo${enviados>1?'s':''}`);
 }
 
 // ── USUARIOS ──────────────────────────────────────────────────
@@ -1794,7 +1766,6 @@ async function publicarNovedad() {
     await dbInsert('news', obj);
     S.news.unshift(obj);
     closeModal('news-modal'); toast('¡Novedad publicada!'); renderNewsFeed(); renderVipFeed();
-    if (visibilidad==='publico') notificarSuscriptores(titulo, obj.cuerpo);
   } catch(e) { toast('Error al publicar'); }
 }
 
@@ -5418,32 +5389,15 @@ async function checkDeudaMail() {
   const grandes = deudas.filter(d => d.monto >= 100000);
   if (!grandes.length) return;
 
-  // Agrupar por deudor y mandar un solo mail con todas sus deudas
-  const porDeudor = {};
-  for (const d of grandes) {
-    if (!porDeudor[d.de]) porDeudor[d.de] = [];
-    porDeudor[d.de].push(d);
+  // Notificar por push a cada deudor
+  const deudores = [...new Set(grandes.map(d => d.de))];
+  for (const deudor of deudores) {
+    const deudas = grandes.filter(d => d.de === deudor);
+    const lineas = deudas.map(d => '$' + Math.round(d.monto).toLocaleString('es-AR') + ' a ' + (USERS[d.para]?.nombre || d.para)).join(', ');
+    await pushNotif([deudor], '💸 Recordatorio de deuda', lineas, '/la-casa-radio/#tab/gastos');
   }
-  let enviados = 0;
-  for (const [deudor, deudas] of Object.entries(porDeudor)) {
-    const emailDeudor = FAMILY_EMAILS[deudor];
-    if (!emailDeudor) continue;
-    const nombreDeudor = USERS[deudor]?.nombre || deudor;
-    const lineas = deudas.map(d => '  • $' + Math.round(d.monto).toLocaleString('es-AR') + ' a ' + (USERS[d.para]?.nombre || d.para)).join('\n');
-    const cuerpo = 'Ey ' + nombreDeudor + '! 👋 Te mandamos este recordatorio con toda la buena onda 😄\n\n'
-      + 'Según La Casa Radio, tenés las siguientes deudas pendientes:\n\n'
-      + lineas + '\n\n'
-      + 'Cuando puedas y te venga bien, ¡saldá la deuda desde la app! 🏠✨\n\n'
-      + 'Saludos de La Casa Radio 🎙️';
-    try {
-      await enviarEmail(emailDeudor, '💸 Recordatorio de deuda — La Casa Radio', cuerpo);
-      enviados++;
-    } catch(e) { console.warn('Error enviando recordatorio deuda a', emailDeudor, e); }
-  }
-
-  if (enviados > 0) {
+  if (deudores.length > 0) {
     DB.set('deuda_notif_week', weekKey);
-    console.log('Recordatorios de deuda enviados:', enviados);
   }
 }
 
