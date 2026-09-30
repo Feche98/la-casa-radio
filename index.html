@@ -1611,15 +1611,7 @@ async function enviarEmail(to_email, titulo, cuerpo) {
 }
 
 async function notificarFamilia(titulo, cuerpo) {
-  // Push a todos
-  pushNotif(['feche','rodri','nehue','civo'], titulo, cuerpo, '/la-casa-radio/');
-  // Mail (mantener como fallback)
-  let ok = 0;
-  for (const email of Object.values(FAMILY_EMAILS)) {
-    try { await enviarEmail(email, titulo, cuerpo); ok++; }
-    catch(e) { console.warn('Error enviando a', email, e); }
-  }
-  if (ok > 0) toast(`📧 Familia notificada (${ok} mails)`);
+  await pushNotif(['feche','rodri','nehue','civo'], titulo, cuerpo, '/la-casa-radio/');
 }
 
 async function notificarSuscriptores(titulo, cuerpo) {
